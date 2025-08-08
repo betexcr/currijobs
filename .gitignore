@@ -35,3 +35,65 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# iOS (React Native / Expo)
+ios/Pods/
+ios/build/
+ios/DerivedData/
+ios/**/build/
+ios/**/DerivedData/
+ios/**/xcuserdata/
+**/*.xcuserstate
+*.xcarchive
+*.ipa
+*.dSYM
+*.dSYM.zip
+
+# Android (if present)
+android/.gradle/
+android/.idea/
+android/local.properties
+android/**/build/
+android/**/captures/
+*.keystore
+*.keystore.properties
+
+# Editors/IDEs
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+
+# Logs (general)
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage / test outputs
+coverage/
+.nyc_output/
+coverage-final.json
+.coverage
+.coverage.*
+*.lcov
+
+# Env files (keep examples)
+.env
+.env.*
+!.env.example
+
+# Certificates / credentials (already covering many native keys above)
+*.cer
+*.crt
+*.der
+
+# Expo shared cache
+.expo-shared/
+
+# Caches / temp
+.cache/
+.tmp/
+tmp/
+temp/
