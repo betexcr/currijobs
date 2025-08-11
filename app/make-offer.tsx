@@ -10,12 +10,13 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, UrlTile } from 'react-native-maps';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
-import { fetchTaskById, createOffer } from '../lib/database';
+import { fetchTaskById, createOffer, fetchOffersWithProfilesForTask, assignOfferToTask } from '../lib/database';
 import type { Task } from '../lib/types';
 import ChambitoMascot from '../components/ChambitoMascot';
+import { isAmazonAndroid } from '../lib/utils';
 
 export default function MakeOfferScreen() {
   const [task, setTask] = useState<Task | null>(null);
@@ -28,7 +29,7 @@ export default function MakeOfferScreen() {
   const amountInputRef = useRef<TextInput>(null);
   const messageInputRef = useRef<TextInput>(null);
   
-  const { taskId } = useLocalSearchParams();
+  const { taskId, mode } = useLocalSearchParams();
   const { user } = useAuth();
   const router = useRouter();
 
@@ -117,6 +118,42 @@ export default function MakeOfferScreen() {
     );
   }
 
+  // Manage mode: show offers list with profiles
+  if (mode === 'manage') {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.header, { backgroundColor: '#1E3A8A' }]}> 
+          <View style={styles.headerTop}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Text style={styles.backIcon}>←</Text>
+            </TouchableOpacity>
+            <Text style={styles.timeText}>5:41</Text>
+            <View style={styles.signalIcons}>
+              <Text style={styles.signalIcon}>📶</Text>
+              <Text style={styles.batteryIcon}>🔋</Text>
+            </View>
+          </View>
+          <Text style={styles.headerTitle}>Offers</Text>
+        </View>
+        <ScrollView style={styles.content}>
+          {task && (<View style={[styles.taskCard, { backgroundColor: '#FFFFFF' }]}> 
+            <Text style={styles.taskCardTitle}>{task.title}</Text>
+            <Text style={styles.taskCardReward}>₡{task.reward?.toLocaleString()}</Text>
+            <Text style={styles.taskCardLocation}>{task.location}</Text>
+          </View>)}
+          {/* Load offers inline */}
+          <OffersList taskId={taskId as string} onSelect={async (offerId) => {
+            const ok = await assignOfferToTask(taskId as string, offerId);
+            if (!ok) { Alert.alert('Error', 'Could not assign offer'); return; }
+            Alert.alert('Assigned', 'Offer assigned successfully');
+            // Ensure map overlay is closed when returning
+            router.replace('/');
+          }} />
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -150,6 +187,7 @@ export default function MakeOfferScreen() {
             <MapView
               style={styles.map}
               pointerEvents="none"
+              mapType={isAmazonAndroid() ? 'none' : 'standard'}
               initialRegion={{
                 latitude: (task.latitude as number) || DEFAULT_COORDS.latitude,
                 longitude: (task.longitude as number) || DEFAULT_COORDS.longitude,
@@ -157,6 +195,13 @@ export default function MakeOfferScreen() {
                 longitudeDelta: 0.01,
               }}
             >
+              {isAmazonAndroid() && (
+                <UrlTile
+                  urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  maximumZ={19}
+                  tileSize={256}
+                />
+              )}
               <Marker
                 coordinate={{
                   latitude: (task.latitude as number) || DEFAULT_COORDS.latitude,
@@ -222,6 +267,55 @@ export default function MakeOfferScreen() {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+  );
+}
+
+function OffersList({ taskId, onSelect }: { taskId: string; onSelect: (offerId: string) => void }) {
+  const [offers, setOffers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const list = await fetchOffersWithProfilesForTask(taskId);
+      setOffers(list);
+      setLoading(false);
+    })();
+  }, [taskId]);
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ChambitoMascot mood="thinking" size="large" />
+        <Text style={styles.loadingText}>Loading offers...</Text>
+      </View>
+    );
+  }
+  if (offers.length === 0) {
+    return (
+      <View style={styles.errorContainer}>
+        <ChambitoMascot mood="error" size="large" />
+        <Text style={styles.errorText}>No offers yet</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={{ gap: 12 }}>
+      {offers.map((o) => (
+        <View key={o.id} style={[styles.taskCard, { backgroundColor: '#FFFFFF' }]}> 
+          <Text style={styles.taskCardTitle}>₡{Number(o.proposed_reward||0).toLocaleString()}</Text>
+          {!!o.message && <Text style={styles.taskCardDescription}>{o.message}</Text>}
+          {/* user profile inline */}
+          {o.user_profile && (
+            <View style={{ marginTop: 8 }}>
+              <Text style={styles.formTitle}>{o.user_profile.full_name || 'User'}</Text>
+              <Text style={styles.inputSubtext}>Rating: {o.user_profile.rating ?? '—'}</Text>
+            </View>
+          )}
+          <TouchableOpacity style={[styles.submitButton, { backgroundColor: '#1E3A8A' }]} onPress={() => onSelect(o.id)}>
+            <Text style={styles.submitButtonText}>Assign this offer</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+    </View>
   );
 }
 

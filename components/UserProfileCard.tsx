@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
+import { useLocalization } from '../contexts/LocalizationContext';
 import { mapProfileToProgress, computeEarnedBadges, getRankColor, BADGES } from '../lib/rank';
 import UserRating from './UserRating';
 
@@ -24,6 +25,7 @@ interface UserProfileCardProps {
   onPress?: () => void;
   compact?: boolean;
   onAvatarPress?: () => void;
+  paymentsMade?: number; // show only payments made for other users
 }
 
 const UserProfileCard: React.FC<UserProfileCardProps> = ({ 
@@ -31,8 +33,10 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
   onPress, 
   compact = false,
   onAvatarPress,
+  paymentsMade,
 }) => {
   const { theme } = useTheme();
+  const { t } = useLocalization();
   const { level, rank, color } = mapProfileToProgress({
     id: user.id,
     rating: user.rating,
@@ -130,33 +134,27 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
         <View style={styles.stats}>
           <View style={styles.statItem}>
             <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>
-              {user.completed_tasks}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.colors.text.secondary }]}>
-              Tasks
-            </Text>
-          </View>
-          
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>
               {formatCurrency(user.total_earnings)}
             </Text>
-            <Text style={[styles.statLabel, { color: theme.colors.text.secondary }]}>
-              Earned
-            </Text>
+            <Text style={[styles.statLabel, { color: theme.colors.text.secondary }]}>{t('earningsThisMonth' as any) || 'Earned Money'}</Text>
           </View>
-          
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.colors.primary.blue }]}>
-              {formatCurrency(user.wallet_balance)}
+            <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>
+              {user.completed_tasks}
             </Text>
-            <Text style={[styles.statLabel, { color: theme.colors.text.secondary }]}>
-              Wallet
-            </Text>
+            <Text style={[styles.statLabel, { color: theme.colors.text.secondary }]}>{t('totalTasksCompleted')}</Text>
           </View>
         </View>
       )}
       
+      {/* Payments made badge (shown if provided, both compact and non-compact) */}
+      {typeof paymentsMade === 'number' && (
+        <View style={styles.paymentsPill}>
+          <Text style={styles.paymentsIcon}>💳</Text>
+          <Text style={[styles.paymentsText, { color: theme.colors.text.primary }]}>Pagos realizados: {paymentsMade}</Text>
+        </View>
+      )}
+
       {/* Badges row */}
       {!compact && resolvedBadges?.length > 0 && (
         <View style={styles.badgesRow}>
@@ -173,7 +171,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
       )}
       
       <Text style={[styles.memberSince, { color: theme.colors.text.secondary }]}>
-        Member since {formatDate(user.member_since)}
+        {t('memberSince')} {formatDate(user.member_since)}
       </Text>
     </Container>
   );
@@ -279,6 +277,25 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 6,
     justifyContent: 'center',
+  },
+  paymentsPill: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 6,
+    gap: 6,
+  },
+  paymentsIcon: {
+    fontSize: 12,
+  },
+  paymentsText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   badgePill: {
     paddingHorizontal: 8,

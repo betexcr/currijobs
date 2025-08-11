@@ -1,4 +1,5 @@
 import { db, auth, getAuthHeaders } from './supabase-lightweight';
+import { sendPushNotification } from './notifications';
 import { Task, CreateTaskData, Offer, CreateOfferData } from './types';
 import { 
   validateTask, 
@@ -11,12 +12,30 @@ import {
   safeValidateOffer
 } from './schemas';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { isDemoMode, useMockData, isFeatureEnabled } from './feature-flags';
+import { isDemoMode, useMockData, isFeatureEnabled, useSupabase } from './feature-flags';
 
 // Mock data for offline development (dense around demo user at La Nopalera)
 const DEMO_LAT = 9.923035;
 const DEMO_LON = -84.043457;
 const nearby = (dLat: number, dLon: number) => ({ latitude: DEMO_LAT + dLat, longitude: DEMO_LON + dLon });
+
+// Deterministic jitter to spread demo tasks by ~20–70 meters
+function jitterDemoLatLon(id: string, baseLat?: number, baseLon?: number): { latitude?: number; longitude?: number } {
+  if (!baseLat || !baseLon) return { latitude: baseLat, longitude: baseLon };
+  // Simple hash from id
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  // Leave some tasks bundled to test grid behavior (about 40%)
+  const keepBundled = (h % 10) < 4;
+  if (keepBundled) {
+    return { latitude: baseLat, longitude: baseLon };
+  }
+  const meters = 20 + (h % 50); // 20..70m
+  const angle = (h % 360) * (Math.PI / 180);
+  const dLat = (meters / 111000) * Math.cos(angle);
+  const dLon = (meters / (111000 * Math.cos(baseLat * Math.PI / 180))) * Math.sin(angle);
+  return { latitude: baseLat + dLat, longitude: baseLon + dLon };
+}
 
 const MOCK_TASKS: Task[] = [
   // cleaning
@@ -103,6 +122,19 @@ const DEMO_PROFILES: Record<string, DemoProfile> = {};
   Array.from(userIds).forEach((id, i) => {
     DEMO_PROFILES[id] = demoProfileFactory(id, i + 1);
   });
+  // Ensure explicit seeded users for login flows exist with full profiles
+  const seededLoginUsers: Array<{ id: string; idx: number; email: string }> = [
+    { id: '00000000-0000-0000-0000-000000000001', idx: 101, email: 'demo@currijobs.com' },
+    { id: '00000000-0000-0000-0000-000000000002', idx: 102, email: 'user2@currijobs.com' },
+    { id: '00000000-0000-0000-0000-000000000003', idx: 103, email: 'user3@currijobs.com' },
+    { id: '00000000-0000-0000-0000-000000000004', idx: 104, email: 'user4@currijobs.com' },
+  ];
+  for (const u of seededLoginUsers) {
+    if (!DEMO_PROFILES[u.id]) {
+      const base = demoProfileFactory(u.id, u.idx);
+      DEMO_PROFILES[u.id] = { ...base, email: u.email };
+    }
+  }
 })();
 
 // Persist user location in profile (demo and real)
@@ -176,42 +208,43 @@ export const fetchTasks = async (): Promise<Task[]> => {
   if (isDemoMode()) {
     // Using mock data for demo
     const created = await loadDemoTasks();
-    return [...created, ...MOCK_TASKS];
+    const combined = [...created, ...MOCK_TASKS];
+    (globalThis as any).console?.log?.(
+      `[demo] fetchTasks -> created:${created.length} mock:${MOCK_TASKS.length} total:${combined.length}`
+    );
+    return combined.map(t => {
+      const j = jitterDemoLatLon(t.id, t.latitude, t.longitude);
+      return { ...t, latitude: j.latitude, longitude: j.longitude } as Task;
+    });
   }
 
   try {
     console.log('Attempting to fetch tasks from Supabase...');
-    const headers = await getAuthHeaders();
-    
     const { data, error } = await db
       .from('tasks')
       .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Supabase error details:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      });
-      return MOCK_TASKS; // Fallback to mock data
+      console.error('Supabase error details:', { message: error.message, details: error.details, hint: error.hint, code: error.code });
+      return [];
     }
 
     console.log('Successfully fetched tasks:', data?.length || 0);
-    if (!data || data.length === 0) {
-      // If DB is empty in dev, show demo tasks
-      return MOCK_TASKS;
-    }
-    return data;
+    const createdLocal = await loadDemoTasks();
+    // Merge local created tasks so creation works without Supabase too
+    const merged = [
+      ...((data || []) as Task[]),
+      ...createdLocal,
+    ];
+    return merged;
   } catch (error: any) {
     console.error('Exception during fetchTasks:', {
       name: error?.name,
       message: error?.message,
       stack: error?.stack
     });
-    // Return mock data if network fails
-    return MOCK_TASKS;
+    return [];
   }
 };
 
@@ -219,7 +252,13 @@ export const fetchTasksNearby = async (latitude: number, longitude: number, maxD
   // If demo mode is enabled, return mock data filtered by distance
   if (isDemoMode()) {
     // Using mock data for nearby tasks
-    return MOCK_TASKS.filter(task => {
+    (globalThis as any).console?.log?.(
+      `[demo] fetchTasksNearby@(${latitude.toFixed(5)},${longitude.toFixed(5)}) radius:${maxDistance}km`
+    );
+    return MOCK_TASKS.map(t => {
+      const j = jitterDemoLatLon(t.id, t.latitude, t.longitude);
+      return { ...t, latitude: j.latitude, longitude: j.longitude } as Task;
+    }).filter(task => {
       if (!task.latitude || !task.longitude) return false;
       
       const distance = calculateDistance(
@@ -242,17 +281,7 @@ export const fetchTasksNearby = async (latitude: number, longitude: number, maxD
 
     if (error) {
       console.error('Error fetching nearby tasks:', error);
-      return MOCK_TASKS.filter(task => {
-        if (!task.latitude || !task.longitude) return false;
-        
-        const distance = calculateDistance(
-          latitude,
-          longitude,
-          task.latitude,
-          task.longitude
-        );
-        return distance <= maxDistance;
-      });
+      return [];
     }
 
     // Filter by distance client-side
@@ -272,41 +301,7 @@ export const fetchTasksNearby = async (latitude: number, longitude: number, maxD
     return nearbyTasks;
   } catch (error: any) {
     console.error('Error fetching nearby tasks:', error);
-    // Return mock data if network fails
-    return [
-      {
-        id: '1',
-        title: 'House Cleaning in San José',
-        description: 'Need help cleaning a 3-bedroom apartment in downtown San José.',
-        category: 'cleaning',
-        reward: 25000,
-        time_estimate: '3 hours',
-        location: 'Downtown San José, Costa Rica',
-        latitude: 9.9281,
-        longitude: -84.0907,
-        user_id: 'user1',
-        created_at: new Date().toISOString(),
-        status: 'open',
-        priority: 'medium',
-        is_urgent: false
-      },
-      {
-        id: '2',
-        title: 'Pet Sitting for Golden Retriever',
-        description: 'Looking for someone to walk and feed my friendly Golden Retriever.',
-        category: 'pet_care',
-        reward: 15000,
-        time_estimate: '2 hours daily',
-        location: 'Escazú, San José, Costa Rica',
-        latitude: 9.9181,
-        longitude: -84.0807,
-        user_id: 'user2',
-        created_at: new Date().toISOString(),
-        status: 'open',
-        priority: 'low',
-        is_urgent: false
-      }
-    ];
+    return [];
   }
 };
 
@@ -315,11 +310,18 @@ export const fetchTaskById = async (taskId: string): Promise<Task | null> => {
   if (isDemoMode()) {
     // Using mock data for task by ID
     const created = await loadDemoTasks();
-    const combined = [...created, ...MOCK_TASKS];
+    const combined = [...created, ...MOCK_TASKS].map(t => {
+      const j = jitterDemoLatLon(t.id, t.latitude, t.longitude);
+      return { ...t, latitude: j.latitude, longitude: j.longitude } as Task;
+    });
     return combined.find(task => task.id === taskId) || null;
   }
 
   try {
+    // Check local created tasks first to support offline/demo-created tasks
+    const created = await loadDemoTasks();
+    const localHit = created.find(t => t.id === taskId);
+    if (localHit) return localHit;
     const { data, error } = await db
       .from('tasks')
       .select('*')
@@ -328,62 +330,59 @@ export const fetchTaskById = async (taskId: string): Promise<Task | null> => {
 
     if (error) {
       console.error('Error fetching task:', error);
-      return MOCK_TASKS.find(task => task.id === taskId) || null;
+      return null;
     }
 
     return data;
   } catch (error: any) {
     console.error('Error fetching task:', error);
-    return MOCK_TASKS.find(task => task.id === taskId) || null;
+    return null;
   }
 };
 
 export const createTask = async (taskData: CreateTaskData, userId: string): Promise<Task | null> => {
   try {
-    if (isDemoMode()) {
-      const validatedData = validateCreateTask(taskData);
-      const newTask: Task = {
-        ...validatedData,
-        id: generateUuid(),
-        created_at: new Date().toISOString(),
-        status: 'open',
-        priority: 'medium',
-        is_urgent: false,
-        user_id: userId || 'demo-user',
-      } as Task;
-      const existing = await loadDemoTasks();
-      const updated = [newTask, ...existing];
-      await saveDemoTasks(updated);
-      return newTask;
-    }
-
-    // Validate input data with Zod
     const validatedData = validateCreateTask(taskData);
-    
-    const { data, error } = await db
-      .from('tasks')
-      .insert({
-        ...validatedData,
-        user_id: userId,
-        status: 'open',
-        created_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+    // Always create a local copy so UI works without backend
+    const localTask: Task = {
+      ...validatedData,
+      id: generateUuid(),
+      created_at: new Date().toISOString(),
+      status: 'open',
+      priority: 'medium',
+      is_urgent: false,
+      user_id: userId || 'demo-user',
+    } as Task;
+    const existing = await loadDemoTasks();
+    await saveDemoTasks([localTask, ...existing]);
 
-    if (error) {
-      console.error('Error creating task:', error);
-      return null;
+    // If Supabase usage is enabled, try inserting there too (best-effort)
+    if (useSupabase()) {
+      try {
+        const { data, error } = await db
+          .from('tasks')
+          .insert({
+            ...validatedData,
+            user_id: userId,
+            status: 'open',
+            created_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+        if (error) {
+          console.warn('Supabase createTask failed; using local only:', error?.message || error);
+        } else {
+          const validatedTask = safeValidateTask(data);
+          if (!validatedTask.success) {
+            console.warn('Supabase returned invalid task; keeping local copy');
+          }
+        }
+      } catch (e) {
+        console.warn('Supabase createTask exception; using local only');
+      }
     }
 
-    // Validate response data with Zod
-    const validatedTask = safeValidateTask(data);
-    if (!validatedTask.success) {
-      console.error('Invalid task data received:', validatedTask.error);
-      return null;
-    }
-
-    return validatedTask.data;
+    return localTask;
   } catch (error: any) {
     console.error('Error creating task:', error);
     return null;
@@ -454,6 +453,167 @@ export const fetchOffersForTask = async (taskId: string): Promise<Offer[]> => {
   }
 };
 
+export type OfferWithProfile = Offer & { user_profile?: any };
+
+export const fetchOffersWithProfilesForTask = async (taskId: string): Promise<OfferWithProfile[]> => {
+  try {
+    const { data: offers, error } = await db
+      .from('offers')
+      .select('*')
+      .eq('task_id', taskId)
+      .order('created_at', { ascending: false });
+    if (error) return [];
+    const list = offers || [];
+    const userIds = Array.from(new Set(list.map((o: any) => String(o.user_id))));
+    if (userIds.length === 0) return list as any;
+    const { data: profiles } = await db.from('profiles').select('*').in('id', userIds);
+    const profMap: Record<string, any> = {};
+    (profiles || []).forEach((p: any) => { profMap[String(p.id)] = p; });
+    return list.map((o: any) => ({ ...o, user_profile: profMap[String(o.user_id)] })) as any;
+  } catch {
+    return [];
+  }
+};
+
+// Count offers per task in a single roundtrip
+export const fetchOfferCountsForTasks = async (taskIds: string[]): Promise<Record<string, number>> => {
+  try {
+    if (!Array.isArray(taskIds) || taskIds.length === 0) return {};
+    const { data, error } = await db
+      .from('offers')
+      .select('task_id, id')
+      .in('task_id', taskIds);
+    if (error) {
+      console.error('Error counting offers:', error);
+      return {};
+    }
+    const counts: Record<string, number> = {};
+    (data || []).forEach((row: any) => {
+      const tid = String(row.task_id);
+      counts[tid] = (counts[tid] || 0) + 1;
+    });
+    return counts;
+  } catch (e) {
+    return {};
+  }
+};
+
+// Assign an offer to a task: set task.assigned_to and status to in_progress
+export const assignOfferToTask = async (taskId: string, offerId: string): Promise<boolean> => {
+  try {
+    // Find the offer to get the user_id
+    const { data: offer, error: offerErr } = await db
+      .from('offers')
+      .select('id, user_id')
+      .eq('id', offerId)
+      .single();
+    if (offerErr || !offer) {
+      console.error('assignOfferToTask: offer not found', offerErr);
+      return false;
+    }
+    const { error } = await db
+      .from('tasks')
+      .update({ assigned_to: offer.user_id, status: 'in_progress', updated_at: new Date().toISOString() })
+      .eq('id', taskId);
+    if (error) {
+      console.error('assignOfferToTask: update failed', error);
+      return false;
+    }
+    // Optionally, mark the accepted offer as accepted and others as rejected (best-effort)
+    try {
+      await db.from('offers').update({ status: 'accepted' }).eq('id', offerId);
+      await db.from('offers').update({ status: 'rejected' }).eq('task_id', taskId).neq('id', offerId);
+    } catch {}
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
+// Worker cancels an in-progress task they are assigned to
+export const cancelAssignedTaskByWorker = async (taskId: string, workerId: string, reason: string): Promise<boolean> => {
+  try {
+    const { data: task, error: tErr } = await db.from('tasks').select('id,assigned_to,status,user_id,title').eq('id', taskId).single();
+    if (tErr || !task) return false;
+    if (task.assigned_to !== workerId || task.status !== 'in_progress') return false;
+    const { error } = await db
+      .from('tasks')
+      .update({ assigned_to: null, status: 'open', updated_at: new Date().toISOString() })
+      .eq('id', taskId);
+    if (error) return false;
+    try {
+      await db.from('task_cancellations').insert({ task_id: taskId, cancelled_by: workerId, reason, created_at: new Date().toISOString() });
+      // Notify owner
+      const { data: owner } = await db.from('profiles').select('expo_push_token,full_name').eq('id', task.user_id).single();
+      if ((owner as any)?.expo_push_token) {
+        await sendPushNotification((owner as any).expo_push_token, 'Worker cancelled job', `A worker cancelled: ${task.title || 'your task'}`, { type: 'cancel', taskId });
+      }
+    } catch {}
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// Owner finishes a task (simulated until QR flow is fully wired)
+export const finishTaskByOwner = async (taskId: string, ownerId: string): Promise<boolean> => {
+  try {
+    const { data: task, error: tErr } = await db.from('tasks').select('id,user_id,status,assigned_to,title').eq('id', taskId).single();
+    if (tErr || !task) return false;
+    if (task.user_id !== ownerId) return false;
+    const { error } = await db
+      .from('tasks')
+      .update({ status: 'completed', updated_at: new Date().toISOString() })
+      .eq('id', taskId);
+    if (error) return false;
+    // Notify both owner and worker (if any)
+    try {
+      const tokens: string[] = [];
+      const { data: owner } = await db.from('profiles').select('expo_push_token').eq('id', ownerId).single();
+      if ((owner as any)?.expo_push_token) tokens.push((owner as any).expo_push_token);
+      if (task.assigned_to) {
+        const { data: worker } = await db.from('profiles').select('expo_push_token').eq('id', task.assigned_to as string).single();
+        if ((worker as any)?.expo_push_token) tokens.push((worker as any).expo_push_token);
+      }
+      if (tokens.length > 0) {
+        await sendPushNotification(tokens, 'Task completed', `${task.title || 'Task'} was completed`, { type: 'completed', taskId });
+      }
+    } catch {}
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// Owner cancels their task (open or in_progress). Notifies assigned worker if any.
+export const cancelTaskByOwner = async (taskId: string, ownerId: string, reason?: string): Promise<boolean> => {
+  try {
+    const { data: task, error: tErr } = await db.from('tasks').select('id,user_id,status,assigned_to,title').eq('id', taskId).single();
+    if (tErr || !task) return false;
+    if (task.user_id !== ownerId) return false;
+    const { error } = await db
+      .from('tasks')
+      .update({ status: 'cancelled', assigned_to: null, updated_at: new Date().toISOString() })
+      .eq('id', taskId);
+    if (error) return false;
+    try {
+      await db.from('task_cancellations').insert({ task_id: taskId, cancelled_by: ownerId, reason: reason || null, created_at: new Date().toISOString() });
+    } catch {}
+    // Notify worker if assigned
+    try {
+      if (task.assigned_to) {
+        const { data: worker } = await db.from('profiles').select('expo_push_token').eq('id', task.assigned_to as string).single();
+        if ((worker as any)?.expo_push_token) {
+          await sendPushNotification((worker as any).expo_push_token, 'Task was cancelled', `${task.title || 'Task'} was cancelled by owner`, { type: 'cancel', taskId });
+        }
+      }
+    } catch {}
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const createOffer = async (offerData: CreateOfferData, userId: string): Promise<Offer | null> => {
   try {
     // In demo mode, short-circuit with a mock offer to avoid UUID/Zod constraints
@@ -469,6 +629,16 @@ export const createOffer = async (offerData: CreateOfferData, userId: string): P
         // optional fields
         updated_at: new Date().toISOString(),
       } as unknown as Offer;
+      // Best-effort notify task owner in demo (if available)
+      try {
+        const { data: taskRow } = await db.from('tasks').select('user_id,title').eq('id', offerData.task_id).single();
+        if (taskRow?.user_id) {
+          const { data: owner } = await db.from('profiles').select('expo_push_token,full_name').eq('id', taskRow.user_id).single();
+          if ((owner as any)?.expo_push_token) {
+            await sendPushNotification((owner as any).expo_push_token, 'New offer received', `${(owner as any).full_name || 'Someone'} sent an offer for ${taskRow.title || 'your task'}`, { type: 'offer', taskId: offerData.task_id, screen: 'task', params: { id: offerData.task_id } });
+          }
+        }
+      } catch {}
       return mockOffer;
     }
 
@@ -595,15 +765,119 @@ export const fetchUserProfile = async (userId: string) => {
       .eq('id', userId)
       .single();
 
-    if (error) {
-      console.error('Error fetching user profile:', error);
-      return null;
+    if (error || !data) {
+      // Fallback: synthesize a local demo profile so UI can proceed without DB row
+      const fallback = DEMO_PROFILES[userId] || demoProfileFactory(userId, Object.keys(DEMO_PROFILES).length + 1000);
+      (globalThis as any).console?.warn?.('User profile not found in DB; using fallback profile for', userId);
+      return fallback;
     }
 
     return data;
   } catch (error: any) {
     console.error('Error fetching user profile:', error);
-    return null;
+    // Last-resort fallback
+    return DEMO_PROFILES[userId] || demoProfileFactory(userId, Object.keys(DEMO_PROFILES).length + 2000);
+  }
+};
+
+// Reviews with context for rank screen
+export type UserReviewWithContext = {
+  id: string;
+  rating: number;
+  comment?: string;
+  created_at: string;
+  task_id: string;
+  task_title?: string;
+  task_status?: string;
+  payment_amount?: number;
+  payment_status?: string;
+  reviewer_name?: string;
+};
+
+export const fetchReviewsForUserWithContext = async (userId: string): Promise<UserReviewWithContext[]> => {
+  try {
+    // In demo mode, synthesize a few reviews based on MOCK_TASKS
+    if (isDemoMode()) {
+      const created = await loadDemoTasks();
+      const combined = [...created, ...MOCK_TASKS];
+      const demo: UserReviewWithContext[] = combined.slice(0, 16).map((t, idx) => ({
+        id: `rev-${t.id}`,
+        rating: 4 + ((idx % 2) as number),
+        comment: idx % 3 === 0 ? 'Excelente trabajo, muy puntual.' : 'Buen trabajo, podría mejorar la comunicación.',
+        created_at: new Date(Date.now() - idx * 86400000).toISOString(),
+        task_id: t.id,
+        task_title: t.title,
+        task_status: t.status,
+        payment_amount: 8000 + (idx % 5) * 1500,
+        payment_status: 'completed',
+        reviewer_name: `Cliente ${idx + 1}`,
+      }));
+      return demo;
+    }
+
+    const { data: reviews, error: revErr } = await db
+      .from('reviews')
+      .select('*')
+      .eq('reviewed_id', userId)
+      .order('created_at', { ascending: false });
+    if (revErr || !reviews) return [];
+
+    const enriched: UserReviewWithContext[] = await Promise.all(
+      reviews.map(async (r: any) => {
+        const [taskRes, payRes, reviewerRes] = await Promise.all([
+          db.from('tasks').select('id,title,status').eq('id', r.task_id).single(),
+          db.from('payments').select('amount,status,task_id,payee_id').eq('task_id', r.task_id).eq('payee_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+          db.from('profiles').select('full_name').eq('id', r.reviewer_id).single(),
+        ]);
+        const task = taskRes.data as any;
+        const pay = (payRes as any)?.data as any;
+        const reviewer = reviewerRes.data as any;
+        return {
+          id: r.id,
+          rating: r.rating,
+          comment: r.comment,
+          created_at: r.created_at,
+          task_id: r.task_id,
+          task_title: task?.title,
+          task_status: task?.status,
+          payment_amount: pay?.amount,
+          payment_status: pay?.status,
+          reviewer_name: reviewer?.full_name,
+        };
+      })
+    );
+    return enriched;
+  } catch (e) {
+    return [];
+  }
+};
+
+// Payments counts (made as payer, received as payee)
+export const fetchPaymentsCountsForUser = async (userId: string): Promise<{ made: number; received: number }> => {
+  try {
+    if (isDemoMode()) {
+      // Deterministic pseudo-counts for demo mode
+      let h = 0;
+      for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) >>> 0;
+      const made = (h % 7) + 3; // 3..9
+      const received = (h % 11) + 5; // 5..15
+      return { made, received };
+    }
+
+    const madeRes = await db
+      .from('payments')
+      .select('id')
+      .eq('payer_id', userId);
+    const receivedRes = await db
+      .from('payments')
+      .select('id')
+      .eq('payee_id', userId);
+
+    const made = Array.isArray(madeRes.data) ? madeRes.data.length : 0;
+    const received = Array.isArray(receivedRes.data) ? receivedRes.data.length : 0;
+    return { made, received };
+  } catch (e) {
+    return { made: 0, received: 0 };
   }
 };
 
@@ -627,6 +901,73 @@ export const updateUserProfile = async (userId: string, updates: any) => {
     return null;
   }
 };
+
+// Rank/Progress persistence
+export type UserProgress = {
+  user_id: string;
+  xp: number;
+  level: number;
+  rank: string;
+  badges: string[];
+  updated_at?: string;
+};
+
+export const fetchUserProgress = async (userId: string): Promise<UserProgress | null> => {
+  try {
+    if (isDemoMode()) {
+      // Deterministic demo progress based on userId
+      let h = 0;
+      for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) >>> 0;
+      const level = 10 + (h % 25); // 10..34
+      const ranks = ['Novato','Aprendiz','Oficial','Experto'];
+      const rank = ranks[Math.min(ranks.length - 1, Math.floor(level / 10))] || 'Novato';
+      const badgePool = ['first-job','hundred-wins','five-stars','category-master','attendance','fast-responder','trusted','on-time'];
+      // Ensure at least 3 badges per user in demo
+      let badges = badgePool.filter((_, idx) => (h >> idx) % 2 === 1);
+      if (badges.length < 3) {
+        // deterministically add more badges until length >= 3
+        for (let i = 0; badges.length < 3 && i < badgePool.length; i++) {
+          if (!badges.includes(badgePool[i])) badges.push(badgePool[i]);
+        }
+      }
+      const residual = h % 100; // 0..99 to show graded progress within current level
+      return { user_id: userId, xp: level * 100 + residual, level, rank, badges };
+    }
+    const { data, error } = await db.from('user_progress').select('*').eq('user_id', userId).maybeSingle();
+    if (error) return null;
+    if (!data) return { user_id: userId, xp: 0, level: 1, rank: 'Novato', badges: [] };
+    return { ...data, badges: Array.isArray((data as any).badges) ? (data as any).badges : [] } as UserProgress;
+  } catch {
+    return null;
+  }
+};
+
+export const upsertUserProgress = async (progress: UserProgress): Promise<boolean> => {
+  try {
+    if (isDemoMode()) return true;
+    const { error } = await db.from('user_progress').upsert({
+      user_id: progress.user_id,
+      xp: progress.xp,
+      level: progress.level,
+      rank: progress.rank,
+      badges: progress.badges,
+      updated_at: new Date().toISOString(),
+    });
+    return !error;
+  } catch {
+    return false;
+  }
+};
+
+// Demo: seed payments for demo reviews/tasks so history is consistent
+async function seedDemoPaymentsForTasks(taskIds: string[], payeeId: string) {
+  try {
+    // no-op in real DB; demo uses in-memory enrichment only
+    return;
+  } catch {
+    return;
+  }
+}
 
 // Utility functions
 export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -704,9 +1045,29 @@ export const fetchTasksByUser = async (userId: string): Promise<Task[]> => {
       return [];
     }
 
-    return data || [];
+    const localCreated = await loadDemoTasks();
+    const merged = [...(data || []), ...localCreated.filter(t => t.user_id === userId)];
+    return merged;
   } catch (error: any) {
     console.error('Error fetching tasks by user:', error);
+    return [];
+  }
+};
+
+// Tasks assigned to a specific user (worker view)
+export const fetchTasksAssignedToUser = async (userId: string): Promise<Task[]> => {
+  try {
+    const { data, error } = await db
+      .from('tasks')
+      .select('*')
+      .eq('assigned_to', userId)
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.error('Error fetching tasks assigned to user:', error);
+      return [];
+    }
+    return (data || []) as Task[];
+  } catch (e) {
     return [];
   }
 };
@@ -747,3 +1108,24 @@ export const TASK_CATEGORIES = [
   'tech_support',
   'photography',
 ] as const;
+
+// Android bootstrap helper: seed local tasks if DB is empty
+export async function seedLocalTasksIfNeeded(): Promise<boolean> {
+  try {
+    const local = await loadDemoTasks();
+    if (local.length > 0) return false;
+    // Probe DB for any tasks; tolerate failures
+    try {
+      const { data, error } = await db.from('tasks').select('id').limit(1);
+      if (!error && Array.isArray(data) && data.length > 0) {
+        return false; // DB has data; no need to seed local
+      }
+    } catch {
+      // ignore
+    }
+    await saveDemoTasks(MOCK_TASKS);
+    return true;
+  } catch {
+    return false;
+  }
+}

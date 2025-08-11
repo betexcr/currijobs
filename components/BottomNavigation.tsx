@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useTheme } from '../contexts/ThemeContext';
+import { FEATURE_FLAGS } from '../lib/feature-flags';
+import { useLocalization } from '../contexts/LocalizationContext';
 
 interface BottomNavItem {
   name: string;
@@ -10,37 +12,24 @@ interface BottomNavItem {
   label: string;
 }
 
-const navItems: BottomNavItem[] = [
-  {
-    name: 'Map',
-    icon: '🗺️',
-    route: '/',
-    label: 'Map'
-  },
-  {
-    name: 'Tasks',
-    icon: '📋',
-    route: '/tasks',
-    label: 'Tasks'
-  },
-  {
-    name: 'MyTasks',
-    icon: '📁',
-    route: '/my-tasks',
-    label: 'My Tasks'
-  },
-  {
-    name: 'Profile',
-    icon: '👤',
-    route: '/profile',
-    label: 'Profile'
+const makeNavItems = (t: ReturnType<typeof useLocalization>['t']): BottomNavItem[] => {
+  const items: BottomNavItem[] = [
+    { name: 'Map', icon: '🗺️', route: '/', label: t('mapView') },
+    { name: 'MyTasks', icon: '📁', route: '/my-tasks', label: t('myTasks') },
+    { name: 'Profile', icon: '👤', route: '/profile', label: t('profile') },
+  ];
+  if (FEATURE_FLAGS.ENABLE_LIST_VIEW_LINK) {
+    items.splice(1, 0, { name: 'Tasks', icon: '📋', route: '/tasks', label: t('taskList') });
   }
-];
+  return items;
+};
 
 export default function BottomNavigation() {
   const router = useRouter();
   const pathname = usePathname();
   const { theme } = useTheme();
+  const { t } = useLocalization();
+  const navItems = makeNavItems(t);
 
   const isActive = (route: string) => {
     if (route === '/') {

@@ -5,25 +5,28 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Platform,
   TextInput,
   ScrollView,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { typography, spacing } from '../lib/designSystem';
-import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, Region, UrlTile } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useAuth } from '../contexts/AuthContext';
+import Constants from 'expo-constants';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { getCategoryLabel } from '../lib/utils';
-import { fetchTasks, fetchTasksNearby, calculateDistance, fetchUserProfile } from '../lib/database';
+import { isAmazonAndroid } from '../lib/utils';
+import { fetchTasks, calculateDistance, fetchUserProfile, seedLocalTasksIfNeeded } from '../lib/database';
 import { testSupabaseConnection, testSupabaseAuth, testSupabaseTables, testSupabaseNetwork } from '../lib/supabase-test';
 import { useSupabase } from '../lib/feature-flags';
 import CategoryIcon from '../components/CategoryIcon';
 import CategoryBadge from '../components/CategoryBadge';
 import UserProfileCard from '../components/UserProfileCard';
+import { fetchPaymentsCountsForUser } from '../lib/database';
 import ChambitoMascot from '../components/ChambitoMascot';
 import BottomNavigation from '../components/BottomNavigation';
 
@@ -50,7 +53,6 @@ const GBSYS_COSTA_RICA = {
 
 // Available categories
 const ALL_CATEGORIES = [
-  'All',
   'plumbing',
   'electrician',
   'carpentry',
@@ -91,20 +93,23 @@ export default function MapScreen() {
   const [tasks, setTasks] = useState<(Task & { distance: number })[]>([]);
   const [filteredTasks, setFilteredTasks] = useState<(Task & { distance: number })[]>([]);
   const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
-  const [maxDistance] = useState(10);
+  // const [maxDistance] = useState(10);
   const [showTasksList, setShowTasksList] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(['All']);
-  const [availableCategories, setAvailableCategories] = useState<string[]>(['All']);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [selectedTask, setSelectedTask] = useState<(Task & { distance: number }) | null>(null);
   const [selectedTaskUser, setSelectedTaskUser] = useState<any | null>(null);
+  const [selectedUserPayments, setSelectedUserPayments] = useState<{ made: number; received: number } | null>(null);
+  const [previewTaskId, setPreviewTaskId] = useState<string | null>(null);
   const [currentRegion, setCurrentRegion] = useState<Region | null>(null);
   const [zoomLevel, setZoomLevel] = useState(0.5); // 0 (far) .. 1 (near)
   // Temporary expansion of overlapping markers near a clicked point
   const [expandedPositions, setExpandedPositions] = useState<Record<string, { latitude: number; longitude: number }>>({});
   const [isExpanded, setIsExpanded] = useState(false);
+  const [expandedCluster, setExpandedCluster] = useState<{ lat: number; lon: number; radiusMeters: number } | null>(null);
   
   const { user, loading: authLoading } = useAuth();
   const { theme } = useTheme();
@@ -112,8 +117,32 @@ export default function MapScreen() {
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
   const searchInputRef = useRef<TextInput>(null);
+  const lastMarkerPressRef = useRef<number>(0);
+
+  // Google Maps dark mode style
+  const NIGHT_MAP_STYLE: any[] = [
+    { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+    { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
+    { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
+    { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#263c3f' }] },
+    { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#6b9a76' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#38414e' }] },
+    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#212a37' }] },
+    { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5b3' }] },
+    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#746855' }] },
+    { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#1f2835' }] },
+    { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#f3d19c' }] },
+    { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#2f3948' }] },
+    { featureType: 'transit.station', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#17263c' }] },
+    { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#515c6d' }] },
+    { featureType: 'water', elementType: 'labels.text.stroke', stylers: [{ color: '#17263c' }] },
+  ];
 
   const supabaseEnabled = useSupabase();
+  const isExpoGoAndroid = Platform.OS === 'android' && (Constants as any)?.appOwnership === 'expo';
   useEffect(() => {
     if (authLoading) return; // Wait for auth to load
     if (supabaseEnabled) {
@@ -122,8 +151,9 @@ export default function MapScreen() {
       testSupabaseTables().then(() => {});
       testSupabaseNetwork().then(() => {});
     }
+    // In demo/simulator, allow map to load with demo user
     if (!user) {
-      router.replace('/welcome');
+      (globalThis as any).console?.log?.('No user set yet; waiting for auth or demo seed...');
       return;
     }
     getCurrentLocation();
@@ -131,13 +161,17 @@ export default function MapScreen() {
 
   const getCurrentLocation = async () => {
     try {
+      // Best-effort local seed on Android if needed (empty DB/local store)
+      if (Platform.OS === 'android') {
+        await seedLocalTasksIfNeeded();
+      }
       // For demo user, always use Costa Rica location
       if (user?.email === 'demo@currijobs.com') {
-          setUserLocation({
+        setUserLocation({
           coords: GBSYS_COSTA_RICA,
           timestamp: Date.now(),
         } as Location.LocationObject);
-          loadAllTasks(GBSYS_COSTA_RICA.latitude, GBSYS_COSTA_RICA.longitude);
+          await loadAllTasks(GBSYS_COSTA_RICA.latitude, GBSYS_COSTA_RICA.longitude);
         
         // Animate map to Costa Rica location
         if (mapRef.current) {
@@ -148,7 +182,6 @@ export default function MapScreen() {
             longitudeDelta: 0.0421,
           });
         }
-        setLoading(false);
         return;
       }
 
@@ -181,7 +214,7 @@ export default function MapScreen() {
       });
 
       setUserLocation(location);
-      loadAllTasks(location.coords.latitude, location.coords.longitude);
+      await loadAllTasks(location.coords.latitude, location.coords.longitude);
       
       // Animate map to user location
       if (mapRef.current) {
@@ -200,7 +233,7 @@ export default function MapScreen() {
         coords: GBSYS_COSTA_RICA,
         timestamp: Date.now(),
       } as Location.LocationObject);
-      loadAllTasks(GBSYS_COSTA_RICA.latitude, GBSYS_COSTA_RICA.longitude);
+      await loadAllTasks(GBSYS_COSTA_RICA.latitude, GBSYS_COSTA_RICA.longitude);
     } finally {
       setLoading(false);
     }
@@ -242,12 +275,12 @@ export default function MapScreen() {
     return jittered;
   };
 
-  // Compute dynamic proximity threshold (km) from current region zoom
+  // Kept for future use; replaced by pixel-based overlap checks
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const computeProximityKm = (): number => {
-    const latDelta = currentRegion?.latitudeDelta ?? 0.03; // reasonable default
-    // Convert degrees to km (~111 km per degree latitude) then take 5% of visible height
+    const latDelta = currentRegion?.latitudeDelta ?? 0.03;
     const visibleKm = latDelta * 111;
-    return Math.max(0.08, visibleKm * 0.05); // min 80m
+    return Math.max(0.08, visibleKm * 0.05);
   };
 
   const metersToLat = (meters: number) => meters / 111000; // approx
@@ -266,19 +299,48 @@ export default function MapScreen() {
     return Math.max(35, step);
   };
 
-  const generateGridOffsets = (count: number, atLat: number, stepMeters: number): Array<{ dLat: number; dLon: number }> => {
-    // Place up to N positions in an NxN grid skipping center; grows with count
-    const grid: Array<{ dLat: number; dLon: number }> = [];
-    let size = 3;
-    while ((size * size - 1) < count) size++;
-    const half = Math.floor(size / 2);
-    for (let r = -half; r <= half; r++) {
-      for (let c = -half; c <= half; c++) {
-        if (r === 0 && c === 0) continue; // skip center
-        grid.push({ dLat: metersToLat(r * stepMeters), dLon: metersToLon(c * stepMeters, atLat) });
-      }
+  const computeOverlapMeters = (): number => {
+    const px = 90; // ~2.25x marker radius for easier overlap detection on phones
+    const m = computeMetersForPixels(px);
+    return Math.max(25, m); // ensure a sensible minimum in meters at far zooms
+  };
+
+  const computeLabelSeparationMeters = (): number => {
+    // Minimum separation (in pixels) so price labels remain readable
+    // Use ~28px (a bit under marker diameter) and scale by zoom via meters-per-pixel
+    const px = 28;
+    const m = computeMetersForPixels(px);
+    return Math.max(10, m);
+  };
+
+  // Estimate meters covered by one pixel at current latitude; used to detect icon overlap
+  const computeMetersForPixels = (pixels: number): number => {
+    const screenHeight = Dimensions.get('window').height || 800;
+    const latDelta = currentRegion?.latitudeDelta ?? 0.03;
+    const metersPerPixel = (latDelta * 111000) / Math.max(1, screenHeight);
+    return metersPerPixel * pixels;
+  };
+
+  // Concentric spiral offsets for expanding overlapping markers
+  const generateSpiralOffsets = (
+    count: number,
+    atLat: number,
+    stepMeters: number
+  ): Array<{ dLat: number; dLon: number }> => {
+    const positions: Array<{ dLat: number; dLon: number }> = [];
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ~137.5° for nice radial separation
+    const radialScale = stepMeters * 0.9; // tune spacing between spiral rings
+    for (let i = 0; i < count; i++) {
+      const k = i + 1; // skip exact center
+      const radius = radialScale * Math.sqrt(k);
+      const theta = k * goldenAngle;
+      const offsetMetersX = radius * Math.cos(theta);
+      const offsetMetersY = radius * Math.sin(theta);
+      const dLat = metersToLat(offsetMetersY); // Y -> latitude meters
+      const dLon = metersToLon(offsetMetersX, atLat); // X -> longitude meters
+      positions.push({ dLat, dLon });
     }
-    return grid.slice(0, count);
+    return positions;
   };
 
   const getAvailableCategories = (taskList: (Task & { distance: number })[]) => {
@@ -295,18 +357,39 @@ export default function MapScreen() {
       setLoading(true);
       const all = await fetchTasks();
       const tasksWithDistance = (all || []).map(task => ({
-        ...task,
-        distance: calculateDistance(
-          latitude,
-          longitude,
-          task.latitude || 0,
-          task.longitude || 0
-        )
-      }));
-      const jittered = applyMarkerJitter(tasksWithDistance);
-      setTasks(jittered);
-      setAvailableCategories(getAvailableCategories(tasksWithDistance));
-      filterTasks();
+          ...task,
+          distance: calculateDistance(
+            latitude,
+            longitude,
+            task.latitude || 0,
+            task.longitude || 0
+          )
+        }));
+        // Hide my own created tasks from the public map view
+        const notMine = tasksWithDistance.filter(t => t.user_id !== user?.id);
+        const jittered = applyMarkerJitter(notMine);
+        setTasks(jittered);
+        setAvailableCategories(getAvailableCategories(notMine));
+
+      // Compute filtered list immediately to avoid empty-state flicker
+      const useAll = selectedCategories.length === 0;
+      let next = jittered;
+      if (!useAll) {
+        const selectedSet = new Set(selectedCategories);
+        next = next.filter(task => selectedSet.has(task.category));
+      }
+      // Hide tasks created by me only on list overlay; keep them on the map for others
+      // Ensure tasks from other users are shown
+      next = next.filter(t => !!t.latitude && !!t.longitude);
+      if (searchQuery.trim()) {
+        next = next.filter(task =>
+          fuzzySearch(searchQuery, task.title) ||
+          fuzzySearch(searchQuery, task.description || '') ||
+          fuzzySearch(searchQuery, task.category) ||
+          fuzzySearch(searchQuery, task.location || '')
+        );
+      }
+      setFilteredTasks(next);
     } catch {
       Alert.alert('Error', 'An unexpected error occurred');
     } finally {
@@ -320,8 +403,9 @@ export default function MapScreen() {
 
     const useAll = selectedCategories.length === 0 || selectedCategories.includes('All');
     if (!useAll) {
-      const selectedSet = new Set(selectedCategories);
-      next = next.filter(task => selectedSet.has(task.category));
+      // Allow filtering by only ONE category at a time (the first one)
+      const first = selectedCategories[0];
+      next = next.filter(task => task.category === first);
     }
 
     if (searchQuery.trim()) {
@@ -423,54 +507,11 @@ export default function MapScreen() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getMarkerOpacity = (_task: Task & { distance: number }) => 1.0;
 
-  const handleMarkerPress = (task: Task & { distance: number }) => {
-    // Add haptic feedback
-    if (Platform.OS === 'ios') {
-      // optional haptics intentionally disabled to avoid runtime require
-    }
-    
-    // Check for overlapping markers nearby this task; if many, expand grid; if already expanded, navigate
-    const proximityKm = computeProximityKm();
-    const nearby = filteredTasks.filter(t =>
-      calculateDistance(
-        task.latitude || 0,
-        task.longitude || 0,
-        t.latitude || 0,
-        t.longitude || 0,
-      ) <= proximityKm
-    );
-
-    if (nearby.length > 1 && !isExpanded) {
-      // Expand into grid
-      const step = computeStepMeters(task.latitude || 0);
-      const offsets = generateGridOffsets(nearby.length, task.latitude || 0, step);
-      const mapping: Record<string, { latitude: number; longitude: number }> = {};
-      nearby.forEach((t, idx) => {
-        const baseLat = t.latitude || 0;
-        const baseLon = t.longitude || 0;
-        const off = offsets[idx] || { dLat: 0, dLon: 0 };
-        mapping[t.id] = { latitude: baseLat + off.dLat, longitude: baseLon + off.dLon };
-      });
-      setExpandedPositions(mapping);
-      setIsExpanded(true);
-      setSelectedTask(null);
-      setSelectedTaskUser(null);
-      return;
-    }
-
-    // If expanded and clicking again on a specific marker, go to its detail card (tooltip flow)
-    if (selectedTask?.id === task.id) {
-      router.push(`/task/${task.id}`);
-      return;
-    }
-
+  const openOverlayForTask = (task: Task & { distance: number }) => {
     setSelectedTask(task);
     if (task.user_id) {
       fetchUserProfile(task.user_id).then((profile) => {
-        if (!profile) {
-          setSelectedTaskUser(null);
-          return;
-        }
+        if (!profile) { setSelectedTaskUser(null); return; }
         const mapped = {
           id: profile.id,
           name: profile.full_name || 'User',
@@ -485,15 +526,122 @@ export default function MapScreen() {
           verified: profile.is_verified ?? false,
         };
         setSelectedTaskUser(mapped);
+        fetchPaymentsCountsForUser(profile.id).then((counts) => {
+          setSelectedUserPayments(counts);
+        }).catch(() => setSelectedUserPayments(null));
       }).catch(() => setSelectedTaskUser(null));
     } else {
       setSelectedTaskUser(null);
     }
   };
 
+  const handleMarkerPress = (task: Task & { distance: number }) => {
+    lastMarkerPressRef.current = Date.now();
+    // When spiral expansion is active, only allow interaction with expanded items
+    if (isExpanded) {
+      const lat = task.latitude || 0;
+      const lon = task.longitude || 0;
+      // If task is part of the expanded set, allow as usual
+      if (expandedPositions[task.id]) {
+        // proceed
+      } else if (expandedCluster) {
+        // Allow clicks only if clearly outside the cluster radius + one marker width
+        const bufferMeters = computeMetersForPixels(66); // 1.5x marker diameter buffer
+        const dMeters = calculateDistance(expandedCluster.lat, expandedCluster.lon, lat, lon) * 1000;
+        if (dMeters <= expandedCluster.radiusMeters + bufferMeters) {
+          return; // ignore presses on markers behind/in the cluster area
+        }
+      } else {
+        return;
+      }
+    }
+    // If markers are too close, expand into grid first instead of showing tooltip
+    const lat = task.latitude || 0;
+    const lon = task.longitude || 0;
+    // Consider icon overlap: threshold in meters using pixel heuristic with min floor
+    const iconOverlapMeters = computeOverlapMeters();
+    const nearby = filteredTasks.filter(t =>
+      (calculateDistance(lat, lon, t.latitude || 0, t.longitude || 0) * 1000) <= iconOverlapMeters
+    );
+    if (nearby.length > 1 && !isExpanded) {
+      const step = computeStepMeters(lat);
+      const offsets = generateSpiralOffsets(nearby.length, lat, step);
+      const mapping: Record<string, { latitude: number; longitude: number }> = {};
+      let maxRadiusMeters = 0;
+      nearby.forEach((t, idx) => {
+        const baseLat = t.latitude || lat;
+        const baseLon = t.longitude || lon;
+        const off = offsets[idx] || { dLat: 0, dLon: 0 };
+        mapping[t.id] = { latitude: baseLat + off.dLat, longitude: baseLon + off.dLon };
+        const d = calculateDistance(lat, lon, baseLat, baseLon) * 1000;
+        if (d > maxRadiusMeters) maxRadiusMeters = d;
+      });
+      setExpandedPositions(mapping);
+      setIsExpanded(true);
+      setExpandedCluster({ lat, lon, radiusMeters: maxRadiusMeters });
+      setSelectedTask(null);
+      setSelectedTaskUser(null);
+      setPreviewTaskId(null);
+      return; // do not show tooltip yet
+    }
+
+    // Always open overlay (no native tooltip)
+    if (task.latitude && task.longitude && mapRef.current) {
+      const nextRegion: Region = {
+        latitude: task.latitude,
+        longitude: task.longitude,
+        latitudeDelta: currentRegion?.latitudeDelta || 0.03,
+        longitudeDelta: currentRegion?.longitudeDelta || 0.03,
+      };
+      setCurrentRegion(nextRegion);
+      mapRef.current.animateToRegion(nextRegion, 300);
+    }
+    setPreviewTaskId(null);
+    openOverlayForTask(task);
+  };
+
+  // Long-press: if multiple tasks near press, force spiral; otherwise open nearest overlay
+  const handleMapLongPress = (lat: number, lon: number) => {
+    const iconOverlapMeters = computeOverlapMeters();
+    const nearby = filteredTasks.filter(t => (
+      calculateDistance(lat, lon, t.latitude || 0, t.longitude || 0) * 1000
+    ) <= iconOverlapMeters);
+    if (nearby.length > 1) {
+      const step = computeStepMeters(lat);
+      const offsets = generateSpiralOffsets(nearby.length, lat, step);
+      const mapping: Record<string, { latitude: number; longitude: number }> = {};
+      let maxRadiusMeters = 0;
+      nearby.forEach((t, idx) => {
+        const baseLat = t.latitude || lat;
+        const baseLon = t.longitude || lon;
+        const off = offsets[idx] || { dLat: 0, dLon: 0 };
+        mapping[t.id] = { latitude: baseLat + off.dLat, longitude: baseLon + off.dLon };
+        const d = calculateDistance(lat, lon, baseLat, baseLon) * 1000;
+        if (d > maxRadiusMeters) maxRadiusMeters = d;
+      });
+      setExpandedPositions(mapping);
+      setIsExpanded(true);
+      setExpandedCluster({ lat, lon, radiusMeters: maxRadiusMeters });
+      setSelectedTask(null);
+      setSelectedTaskUser(null);
+      setPreviewTaskId(null);
+      return;
+    }
+    // Fallback to nearest overlay
+    const nearest = filteredTasks.reduce((closest, current) => {
+      const cd = calculateDistance(lat, lon, current.latitude || 0, current.longitude || 0);
+      const dd = closest ? calculateDistance(lat, lon, closest.latitude || 0, closest.longitude || 0) : Number.POSITIVE_INFINITY;
+      return cd < dd ? current : closest;
+    }, null as (Task & { distance: number }) | null);
+    if (nearest) {
+      openOverlayForTask(nearest);
+    }
+  };
+
   const handleTooltipClose = () => {
     setSelectedTask(null);
     setSelectedTaskUser(null);
+    setSelectedUserPayments(null);
   };
 
   const handleSubmitOffer = (taskId: string) => {
@@ -545,14 +693,14 @@ export default function MapScreen() {
         Math.abs((currentRegion as any).longitudeDelta - nextRegion.longitudeDelta) < 1e-6
       );
       if (!isSameRegion) {
-        setCurrentRegion(nextRegion);
+      setCurrentRegion(nextRegion);
       }
       setZoomLevel(0.8);
       // Slight defer using microtask
       Promise.resolve().then(() => {
         if (mapRef.current) {
           if (!isSameRegion) {
-            mapRef.current.animateToRegion(nextRegion, 400);
+          mapRef.current.animateToRegion(nextRegion, 400);
           }
         }
       });
@@ -562,27 +710,54 @@ export default function MapScreen() {
   };
 
   const handleCategorySelect = (category: string) => {
+    // Single-select; tap again to clear
     setSearchQuery('');
     setSelectedTask(null);
     setSelectedTaskUser(null);
-    setSelectedCategories(prev => {
-      // Reset when choosing All
-      if (category === 'All') return ['All'];
-      // Toggle logic
-      const hasAll = prev.includes('All');
-      const next = new Set<string>(hasAll ? [] : prev);
-      if (next.has(category)) {
-        next.delete(category);
-      } else {
-        next.add(category);
-      }
-      const arr = Array.from(next);
-      return arr.length === 0 ? ['All'] : arr;
+    setSelectedCategories((prev) => (prev.length === 1 && prev[0] === category ? [] : [category]));
+    // After state updates flush, center to the nearest visible task for current selection
+    Promise.resolve().then(() => {
+      focusNearestForSelection();
     });
+  };
+
+  const focusNearestForCategory = (category: string) => {
+    try {
+      const originLat = currentRegion?.latitude ?? userLocation?.coords.latitude ?? GBSYS_COSTA_RICA.latitude;
+      const originLon = currentRegion?.longitude ?? userLocation?.coords.longitude ?? GBSYS_COSTA_RICA.longitude;
+      const candidateTasks = category === 'All' ? tasks : tasks.filter(t => t.category === category);
+      if (!candidateTasks || candidateTasks.length === 0) return;
+
+      const nearest = candidateTasks.reduce((closest, current) => {
+        const currentDistance = calculateDistance(
+          originLat,
+          originLon,
+          current.latitude || 0,
+          current.longitude || 0
+        );
+        const closestDistance = closest
+          ? calculateDistance(originLat, originLon, closest.latitude || 0, closest.longitude || 0)
+          : Number.POSITIVE_INFINITY;
+        return currentDistance < closestDistance ? current : closest;
+      }, null as (Task & { distance: number }) | null);
+
+      if (!nearest || !nearest.latitude || !nearest.longitude) return;
+      const nextRegion: Region = {
+        latitude: nearest.latitude,
+        longitude: nearest.longitude,
+        latitudeDelta: 0.03,
+        longitudeDelta: 0.03,
+      };
+      setCurrentRegion(nextRegion);
+      mapRef.current?.animateToRegion(nextRegion, 400);
+    } catch {
+      // no-op
+    }
   };
 
   // Re-focus when inputs change (selected categories, data set, or map center)
   useEffect(() => {
+    // Center to the nearest task whenever categories or task set changes
     focusNearestForSelection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCategories, tasks]);
@@ -630,10 +805,8 @@ export default function MapScreen() {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.loadingContainer}>
-          <ChambitoMascot mood="thinking" size="large" />
-          <Text style={[styles.loadingText, { color: theme.colors.text.primary }]}>
-            {authLoading ? 'Loading...' : 'Finding tasks near you...'}
-          </Text>
+          <ChambitoMascot variant="queen" size="giant" showMessage message={authLoading ? 'Loading...' : 'Finding tasks near you...'} />
+          
         </View>
       </View>
     );
@@ -671,24 +844,37 @@ export default function MapScreen() {
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity
-              onPress={() => router.push('/tasks')}
+              onPress={async () => {
+                try {
+                  const originLat = userLocation?.coords.latitude || GBSYS_COSTA_RICA.latitude;
+                  const originLon = userLocation?.coords.longitude || GBSYS_COSTA_RICA.longitude;
+                  await loadAllTasks(originLat, originLon);
+                } catch {}
+              }}
               style={[
                 styles.listButton,
                 {
-                  backgroundColor: theme.mode === 'light' ? '#0F3576' : theme.colors.surface,
-                  borderColor: theme.mode === 'light' ? '#0F3576' : theme.colors.border,
+                  backgroundColor: theme.mode === 'light' ? '#0B7A34' : theme.colors.surface,
+                  borderColor: theme.mode === 'light' ? '#0B7A34' : theme.colors.border,
                   borderWidth: 1,
                 }
               ]}
             >
-              <Text style={styles.listButtonText}>📋 {t('listView')}</Text>
+              <Text style={styles.listButtonText}>🔄 Refresh</Text>
             </TouchableOpacity>
-          <TouchableOpacity
+            <TouchableOpacity
               onPress={() => router.push('/create-task')}
-              style={[styles.createButton, { backgroundColor: theme.mode === 'light' ? '#FF6B35' : theme.colors.primary.blue }]}
-          >
-              <Text style={styles.createButtonText}>+ {t('createTask')}</Text>
-          </TouchableOpacity>
+              style={[
+                styles.createButton,
+                {
+                  backgroundColor: theme.mode === 'light' ? '#FF6B35' : '#1E3A8A',
+                  borderWidth: 1,
+                  borderColor: theme.mode === 'light' ? '#FF6B35' : '#3B82F6',
+                },
+              ]}
+            >
+              <Text style={[styles.createButtonText, { color: 'white' }]}>+ {t('createTask')}</Text>
+            </TouchableOpacity>
           </View>
       </View>
 
@@ -731,58 +917,52 @@ export default function MapScreen() {
           style={styles.categoryContainer}
           contentContainerStyle={styles.categoryContent}
         >
-           {availableCategories.map((category) => (
+           {availableCategories.map((category) => {
+             const isSelected = selectedCategories.includes(category);
+             const unselectedStyle = theme.mode === 'light'
+               ? { backgroundColor: '#F5F5F5', borderColor: '#E0E0E0' }
+               : { backgroundColor: 'rgba(59,130,246,0.08)', borderColor: '#3B82F6' };
+             const textColor = isSelected ? 'white' : (theme.mode === 'light' ? theme.colors.text.primary : '#E5E7EB');
+             return (
             <TouchableOpacity
               key={category}
               style={[
                 styles.categoryButton,
-                 (selectedCategories.includes('All') && category === 'All') || selectedCategories.includes(category)
-                   ? { backgroundColor: getCategoryColor(category) }
-                   : null
+                   isSelected
+                     ? { backgroundColor: getCategoryColor(category), borderColor: getCategoryColor(category) }
+                     : unselectedStyle,
               ]}
                onPress={() => handleCategorySelect(category)}
             >
-              <Text style={[
-                styles.categoryIcon,
-                 ((selectedCategories.includes('All') && category === 'All') || selectedCategories.includes(category))
-                   ? { color: 'white' }
-                   : { color: theme.colors.text.primary }
-              ]}>
-                {category === 'All' ? '📋' : getCategoryIcon(category)}
+                 <Text style={[styles.categoryIcon, { color: textColor }]}>
+                 {getCategoryIcon(category)}
               </Text>
-              <Text style={[
-                styles.categoryText,
-                 ((selectedCategories.includes('All') && category === 'All') || selectedCategories.includes(category))
-                   ? { color: 'white' }
-                   : { color: theme.colors.text.primary }
-              ]}>
-                 {category === 'All' ? t('all') : getCategoryLabel(category as any, t)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-          {ALL_CATEGORIES.filter(cat => cat !== 'All' && !availableCategories.includes(cat)).map((category) => (
-            <TouchableOpacity
-              key={category}
-              style={[
-                styles.categoryButton,
-                styles.categoryButtonDisabled
-              ]}
-              disabled={true}
-            >
-              <Text style={[
-                styles.categoryIcon,
-                styles.categoryTextDisabled
-              ]}>
-                {getCategoryIcon(category)}
-              </Text>
-              <Text style={[
-                styles.categoryText,
-                styles.categoryTextDisabled
-              ]}>
+                 <Text style={[styles.categoryText, { color: textColor }]}>
                  {getCategoryLabel(category as any, t)}
               </Text>
             </TouchableOpacity>
-          ))}
+             );
+           })}
+          {ALL_CATEGORIES.filter(cat => !availableCategories.includes(cat)).map((category) => {
+            const disabledStyle = theme.mode === 'light'
+              ? { backgroundColor: '#F0F0F0' }
+              : { backgroundColor: 'rgba(148,163,184,0.15)' };
+            const disabledText = theme.mode === 'light' ? '#999999' : '#94A3B8';
+            return (
+            <TouchableOpacity
+              key={category}
+                style={[styles.categoryButton, styles.categoryButtonDisabled, disabledStyle]}
+              disabled={true}
+            >
+                <Text style={[styles.categoryIcon, { color: disabledText }]}>
+                {getCategoryIcon(category)}
+              </Text>
+                <Text style={[styles.categoryText, { color: disabledText }]}>
+                 {getCategoryLabel(category as any, t)}
+              </Text>
+            </TouchableOpacity>
+            );
+          })}
         </ScrollView>
         
       {/* (Location status indicator removed as unnecessary) */}
@@ -848,7 +1028,7 @@ export default function MapScreen() {
                   ₡{task.reward?.toLocaleString()}
                 </Text>
                 <Text style={[styles.recommendationDistance, { color: theme.colors.text.secondary }]}>
-                  {task.distance?.toFixed(1)}km away
+                  {t('at')} {task.distance?.toFixed(1)} {t('kilometersAway')}
                 </Text>
                 <TouchableOpacity
                   style={[styles.offerButton, { backgroundColor: '#1E3A8A' }]}
@@ -864,10 +1044,12 @@ export default function MapScreen() {
 
       {/* Map */}
       <View style={styles.mapContainer}>
-        <MapView
+          <MapView
           ref={mapRef}
           style={styles.map}
-          provider={PROVIDER_GOOGLE}
+            provider={(isAmazonAndroid() || isExpoGoAndroid) ? undefined : (Platform.OS === 'ios' ? PROVIDER_GOOGLE : undefined)}
+            mapType={(isAmazonAndroid() || isExpoGoAndroid) ? 'none' : 'standard'}
+            customMapStyle={isAmazonAndroid() ? undefined : (theme.mode === 'dark' ? NIGHT_MAP_STYLE : [])}
           initialRegion={{
             latitude: userLocation?.coords.latitude || GBSYS_COSTA_RICA.latitude,
             longitude: userLocation?.coords.longitude || GBSYS_COSTA_RICA.longitude,
@@ -876,7 +1058,7 @@ export default function MapScreen() {
           }}
           onLongPress={(event) => {
             const { latitude, longitude } = event.nativeEvent.coordinate;
-            router.push({ pathname: '/create-task', params: { lat: String(latitude), lon: String(longitude) } });
+            handleMapLongPress(latitude, longitude);
           }}
           showsUserLocation={true}
           showsMyLocationButton={true}
@@ -890,21 +1072,112 @@ export default function MapScreen() {
           zoomControlEnabled={true}
           minZoomLevel={10}
           maxZoomLevel={20}
-          mapType="standard"
           liteMode={false}
           moveOnMarkerPress={true}
           followsUserLocation={false}
           toolbarEnabled={false}
           onRegionChangeComplete={(region) => setCurrentRegion(region)}
           onPress={() => {
-            // collapse expansion when tapping elsewhere
+            if (Date.now() - lastMarkerPressRef.current < 250) {
+              return;
+            }
+            // If spiral is open and an overlay is visible, close ONLY the overlay
+            if (isExpanded && selectedTask) {
+              setSelectedTask(null);
+              setSelectedTaskUser(null);
+              setSelectedUserPayments(null);
+              if (previewTaskId) setPreviewTaskId(null);
+              return;
+            }
+            // If spiral is open and no overlay, collapse the spiral
             if (isExpanded) {
               setIsExpanded(false);
               setExpandedPositions({});
+              setExpandedCluster(null);
+              if (previewTaskId) setPreviewTaskId(null);
+              return;
             }
+            // No spiral: close overlay/tooling if any
+            if (selectedTask) {
+              setSelectedTask(null);
+              setSelectedTaskUser(null);
+              setSelectedUserPayments(null);
+            }
+            if (previewTaskId) setPreviewTaskId(null);
           }}
         >
-          {filteredTasks.map((task) => (
+          {(isAmazonAndroid() || isExpoGoAndroid) && (
+            <UrlTile
+              urlTemplate={theme.mode === 'dark' ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
+              maximumZ={19}
+              tileSize={256}
+            />
+          )}
+          {/* Home marker */}
+          {((user as any)?.home_latitude != null && (user as any)?.home_longitude != null) && (
+            <Marker
+              key="home-marker"
+              coordinate={{ latitude: (user as any).home_latitude, longitude: (user as any).home_longitude }}
+              title={t('goHome')}
+              description={t('address')}
+              pinColor="#1E3A8A"
+            >
+              <View style={[styles.homeMarker, { backgroundColor: theme.mode === 'light' ? '#0F3576' : '#1E3A8A' }]}>
+                <Text style={styles.homeMarkerEmoji}>🏠</Text>
+              </View>
+            </Marker>
+          )}
+          {filteredTasks.map((task) => {
+            // Determine if price label should be shown based on proximity (zoom-aware)
+            const thresholdMeters = computeLabelSeparationMeters();
+            const hasCloseNeighbor = filteredTasks.some((other) => {
+              if (other.id === task.id) return false;
+              return (
+                calculateDistance(
+                  task.latitude || 0,
+                  task.longitude || 0,
+                  other.latitude || 0,
+                  other.longitude || 0,
+                ) * 1000
+              ) <= thresholdMeters;
+            });
+            // In expanded mode: ALWAYS show for spiral members; for non-members, show if outside cluster buffer and not overcrowded
+            const isSpiralMember = isExpanded && !!expandedPositions[task.id];
+            let showPriceLabel = false;
+            if (isExpanded) {
+              if (isSpiralMember) {
+                showPriceLabel = true;
+              } else if (expandedCluster) {
+                const bufferMeters = computeMetersForPixels(66); // 1.5x buffer outside cluster
+                const dMeters = calculateDistance(
+                  expandedCluster.lat,
+                  expandedCluster.lon,
+                  task.latitude || 0,
+                  task.longitude || 0
+                ) * 1000;
+                const outsideCluster = dMeters > (expandedCluster.radiusMeters + bufferMeters);
+                showPriceLabel = outsideCluster && !hasCloseNeighbor;
+              } else {
+                showPriceLabel = !hasCloseNeighbor;
+              }
+            } else {
+              // If not expanded: always show for tasks separated at least ~15% of the overlap radius
+              const looseThreshold = computeOverlapMeters() * 0.15;
+              const nearAnother = filteredTasks.some((other) => {
+                if (other.id === task.id) return false;
+                const d = calculateDistance(
+                  task.latitude || 0,
+                  task.longitude || 0,
+                  other.latitude || 0,
+                  other.longitude || 0
+                ) * 1000;
+                return d < looseThreshold;
+              });
+              showPriceLabel = !nearAnother;
+            }
+            const isClusterAnchor = isExpanded && expandedCluster && expandedCluster.radiusMeters > 0 && task.id === '__cluster_close__';
+            if (isClusterAnchor) return null;
+            return (
             <Marker
               key={task.id}
               coordinate={{
@@ -912,14 +1185,43 @@ export default function MapScreen() {
                 longitude: isExpanded && expandedPositions[task.id]?.longitude != null ? expandedPositions[task.id].longitude : (task.longitude || 0),
               }}
               onPress={() => handleMarkerPress(task)}
-              title={task.title}
-              description={`₡${task.reward?.toLocaleString() || '0'}`}
             >
-              <View style={[styles.customMarker, { backgroundColor: getCategoryColor(task.category) }]}>
-                <Text style={styles.markerEmoji}>{getCategoryIcon(task.category)}</Text>
+              <View style={{ alignItems: 'center' }}>
+                <View style={[styles.customMarker, { backgroundColor: getCategoryColor(task.category) }]}>
+                  <Text style={styles.markerEmoji}>{getCategoryIcon(task.category)}</Text>
+                </View>
+                {(isSpiralMember || showPriceLabel) && (
+                  <View style={styles.priceLabelContainer} pointerEvents="none">
+                    <Text style={styles.priceLabelText}>{t('currency')}{(task.reward ?? 0).toLocaleString()}</Text>
+                  </View>
+                )}
               </View>
             </Marker>
-          ))}
+          );})}
+          {isExpanded && expandedCluster && (
+            <Marker
+              key="cluster-close"
+              coordinate={{
+                latitude: expandedCluster.lat + metersToLat(expandedCluster.radiusMeters * 1.25),
+                longitude: expandedCluster.lon + metersToLon(expandedCluster.radiusMeters * 1.25, expandedCluster.lat),
+              }}
+              onPress={() => {
+                setIsExpanded(false);
+                setExpandedPositions({});
+                setExpandedCluster(null);
+                if (selectedTask) {
+                  setSelectedTask(null);
+                  setSelectedTaskUser(null);
+                  setSelectedUserPayments(null);
+                }
+                if (previewTaskId) setPreviewTaskId(null);
+              }}
+            >
+              <View style={[styles.clusterCloseMarker, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}> 
+                <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.text.primary }}>✕</Text>
+              </View>
+            </Marker>
+          )}
         </MapView>
       </View>
 
@@ -931,7 +1233,28 @@ export default function MapScreen() {
         <TouchableOpacity style={[styles.zoomButton, { backgroundColor: theme.colors.surface, marginTop: 8 }]} onPress={handleZoomOut}>
           <Text style={[styles.zoomLabel, { color: theme.colors.text.primary }]}>－</Text>
         </TouchableOpacity>
+        {/* Home button to jump to saved home address */}
+        <TouchableOpacity
+          style={[styles.zoomButton, { backgroundColor: theme.colors.surface, marginTop: 8 }]}
+          onPress={() => {
+            // Fallback to demo center if no saved home is available
+            const homeLat = (user as any)?.home_latitude ?? GBSYS_COSTA_RICA.latitude;
+            const homeLon = (user as any)?.home_longitude ?? GBSYS_COSTA_RICA.longitude;
+            const nextRegion: Region = {
+              latitude: homeLat,
+              longitude: homeLon,
+              latitudeDelta: 0.03,
+              longitudeDelta: 0.03,
+            };
+            setCurrentRegion(nextRegion);
+            mapRef.current?.animateToRegion(nextRegion, 400);
+          }}
+        >
+          <Text style={[styles.zoomLabel, { color: theme.colors.text.primary }]}>🏠</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Cluster Close Button removed from map overlay; replaced with anchored marker near spiral */}
 
       {/* Task Detail Overlay */}
       {selectedTask && (
@@ -956,11 +1279,11 @@ export default function MapScreen() {
           <View style={styles.detailMetaRow}>
             <View style={styles.detailMetaItem}>
               <Text style={styles.detailMetaIcon}>📍</Text>
-              <Text style={[styles.detailMetaText, { color: theme.colors.text.primary }]}>{selectedTask.location}</Text>
+              <Text style={[styles.detailMetaText, { color: theme.colors.text.primary }]}>{t('address')}: {selectedTask.location}</Text>
             </View>
             <View style={styles.detailMetaItem}>
               <Text style={styles.detailMetaIcon}>🧭</Text>
-              <Text style={[styles.detailMetaText, { color: theme.colors.text.secondary }]}>{selectedTask.distance?.toFixed(1)} km</Text>
+              <Text style={[styles.detailMetaText, { color: theme.colors.text.secondary }]}>{t('at')} {selectedTask.distance?.toFixed(1)} {t('kilometersAway')}</Text>
             </View>
           </View>
 
@@ -968,7 +1291,7 @@ export default function MapScreen() {
 
           {selectedTaskUser && (
             <View style={[styles.posterCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <UserProfileCard user={selectedTaskUser} compact={true} />
+              <UserProfileCard user={selectedTaskUser} compact={true} paymentsMade={selectedUserPayments?.made} />
             </View>
           )}
 
@@ -1336,8 +1659,52 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'white',
   },
+  homeMarker: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
+  },
   markerEmoji: {
     fontSize: 18,
+  },
+  priceLabelContainer: {
+    marginTop: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    elevation: 3,
+    zIndex: 2,
+  },
+  priceLabelText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  homeMarkerEmoji: {
+    fontSize: 18,
+    color: 'white',
+  },
+  clusterCloseMarker: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    elevation: 3,
   },
   locationStatus: {
     paddingHorizontal: 16,

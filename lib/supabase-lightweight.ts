@@ -2,17 +2,24 @@ import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoTrueClient } from '@supabase/gotrue-js';
 import { PostgrestClient } from '@supabase/postgrest-js';
+import { Platform } from 'react-native';
 
 // Remote Supabase config (kept for production)
 const supabaseUrl = 'https://fpvrlhubpwrslsuopuwr.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZwdnJsaHVicHdyc2xzdW9wdXdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1NzIyNjEsImV4cCI6MjA2NjE0ODI2MX0.K27ARInEvNheUXpEetwgyLUdeCNy37q-eJkgpDJKusA';
 
 // Local PostgREST base URL for dev (Docker)
-// Use EXPO_PUBLIC_POSTGREST_URL if provided, else default to localhost:3000
-const localPostgrestUrl = (typeof process !== 'undefined' && (process as any).env?.EXPO_PUBLIC_POSTGREST_URL) || 'http://localhost:3000';
+// Use EXPO_PUBLIC_POSTGREST_URL if provided, else default to http://localhost:3000
+const rawLocalPostgrestUrl = (typeof process !== 'undefined' && (process as any).env?.EXPO_PUBLIC_POSTGREST_URL) || 'http://localhost:3000';
 
-// Toggle to use local PostgREST for development
-const USE_LOCAL_POSTGREST = true;
+// Normalize localhost for Android emulator (host loopback is 10.0.2.2)
+const localPostgrestUrl = Platform.OS === 'android'
+  ? rawLocalPostgrestUrl.replace('localhost', '10.0.2.2')
+  : rawLocalPostgrestUrl;
+
+// Toggle to use local PostgREST ONLY when explicitly requested
+const envUseLocal = (typeof process !== 'undefined' && (process as any).env?.EXPO_PUBLIC_USE_LOCAL_DB) === 'true';
+const USE_LOCAL_POSTGREST = envUseLocal;
 
 // Auth client setup with better React Native configuration
 export const auth = new GoTrueClient({
@@ -27,7 +34,7 @@ export const auth = new GoTrueClient({
 // DB client setup (for querying data)
 const postgrestBase = USE_LOCAL_POSTGREST ? localPostgrestUrl : `${supabaseUrl}/rest/v1`;
 const commonHeaders = USE_LOCAL_POSTGREST
-  ? {}
+  ? { Prefer: 'return=representation' }
   : { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}` };
 
 export const db = new PostgrestClient(postgrestBase, {

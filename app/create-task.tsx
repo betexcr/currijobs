@@ -9,37 +9,39 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Dimensions,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, UrlTile } from 'react-native-maps';
+import Constants from 'expo-constants';
 import { useLocalSearchParams } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
-import { taskService } from '../lib/database';
+// import { useTheme } from '../contexts/ThemeContext';
+// @ts-expect-error - type defs may be missing in RN env
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
+import { createTask } from '../lib/database';
+import { validateCreateTask } from '../lib/schemas';
 import ChambitoMascot from '../components/ChambitoMascot';
+import { isAmazonAndroid } from '../lib/utils';
 
-const { width, height } = Dimensions.get('window');
 
 export default function CreateTaskScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState('cleaning');
   const [reward, setReward] = useState('');
-  const [timeEstimate, setTimeEstimate] = useState('');
-  const [location, setLocation] = useState('');
+  // const [location, setLocation] = useState('');
+  const [deadline, setDeadline] = useState<Date | null>(null);
+  const [isPickerVisible, setPickerVisible] = useState(false);
+  const [pickerStep, setPickerStep] = useState<'date' | 'time'>('date');
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   
   // Refs for native keyboard navigation
   const descriptionInputRef = useRef<TextInput>(null);
-  const categoryInputRef = useRef<TextInput>(null);
   const rewardInputRef = useRef<TextInput>(null);
-  const timeEstimateInputRef = useRef<TextInput>(null);
-  const locationInputRef = useRef<TextInput>(null);
   
   const { user } = useAuth();
-  const { theme } = useTheme();
+  // const { theme } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ lat?: string; lon?: string }>();
 
@@ -53,14 +55,59 @@ export default function CreateTaskScreen() {
   }, [params.lat, params.lon]);
 
   const handleCreateTask = async () => {
-    if (!title || !description || !category || !reward || !timeEstimate || !coords) {
-      Alert.alert('Error', 'Please complete all required fields');
-      return;
-    }
+    try {
+      if (!title || !description || !category || !reward || !coords) {
+        Alert.alert('Error', 'Please complete all required fields');
+        return;
+      }
+      if (!user?.id) {
+        Alert.alert('Error', 'You must be logged in');
+        return;
+      }
 
-    Alert.alert('Success', 'Task created successfully!', [
-      { text: 'OK', onPress: () => router.back() }
-    ]);
+      const taskData: {
+        title: string;
+        description: string;
+        category: string;
+        reward: number;
+        location: string;
+        latitude: number;
+        longitude: number;
+        deadline?: string;
+      } = {
+        title,
+        description,
+        category: category as any,
+        reward: Number(reward) || 0,
+        location: '',
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        deadline: deadline ? deadline.toISOString() : undefined,
+      } as any;
+
+      const validated = validateCreateTask(taskData as unknown as {
+        title: string;
+        description: string;
+        category: any;
+        reward: number;
+        location: string;
+        latitude: number;
+        longitude: number;
+        deadline?: string;
+      });
+      const created = await createTask(validated as unknown as any, user.id);
+      if (created) {
+        Alert.alert('Success', 'Task created successfully!', [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
+      } else {
+        Alert.alert('Error', 'Could not create task');
+      }
+    } catch (e) {
+      // istanbul ignore next
+      (globalThis as any).console?.error?.('Create task failed', e);
+      Alert.alert('Error', 'Could not create task');
+    }
   };
 
   return (
@@ -102,6 +149,7 @@ export default function CreateTaskScreen() {
 
         {/* Task Form */}
         <View style={[styles.formContainer, { backgroundColor: '#FFFFFF' }]}>
+          <Text style={styles.sectionTitle}>🛠️ Información Básica</Text>
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Task Title</Text>
             <TextInput
@@ -129,7 +177,7 @@ export default function CreateTaskScreen() {
               value={description}
               onChangeText={setDescription}
               returnKeyType="next"
-              onSubmitEditing={() => categoryInputRef.current?.focus()}
+              onSubmitEditing={() => rewardInputRef.current?.focus()}
               blurOnSubmit={false}
               autoCapitalize="sentences"
               multiline
@@ -138,63 +186,91 @@ export default function CreateTaskScreen() {
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Category</Text>
-            <TextInput
-              ref={categoryInputRef}
-              style={[styles.input, { borderColor: '#E5E7EB' }]}
-              placeholder="e.g., Cleaning, Handyman, Delivery"
-              placeholderTextColor="#9CA3AF"
-              value={category}
-              onChangeText={setCategory}
-              returnKeyType="next"
-              onSubmitEditing={() => rewardInputRef.current?.focus()}
-              blurOnSubmit={false}
-              autoCapitalize="words"
-              autoComplete="off"
-            />
+          <Text style={styles.sectionTitle}>🪛 Categoría</Text>
+          <View style={styles.categoryGrid}>
+            {[
+              { key: 'cleaning', label: '🧹 Limpieza' },
+              { key: 'plumbing', label: '🔧 Plomería' },
+              { key: 'electricity', label: '⚡ Electricidad' },
+              { key: 'carpentry', label: '🔨 Carpintería' },
+              { key: 'painting', label: '🪛 Pintura' },
+              { key: 'appliance_repair', label: '🖥️ Reparación Electrodóm.' },
+              { key: 'laundry_ironing', label: '👕 Lavandería y Planchado' },
+              { key: 'cooking', label: '🏠 Cocina' },
+              { key: 'pet_care', label: '🪴 Cuidado de Mascotas' },
+              { key: 'gardening', label: '🌿 Jardinería' },
+              { key: 'photography', label: '📷 Fotografía' },
+            ].map((cat) => (
+              <TouchableOpacity
+                key={cat.key}
+                style={[
+                  styles.categoryPill,
+                  category === cat.key && { backgroundColor: '#5B21B6', borderColor: '#5B21B6' },
+                ]}
+                onPress={() => setCategory(cat.key)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.categoryPillText,
+                    { color: category === cat.key ? '#FFFFFF' : '#111827' },
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
+          <Text style={styles.sectionTitle}>💰 Recompensa</Text>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Reward (₡)</Text>
-            <TextInput
-              ref={rewardInputRef}
-              style={[styles.input, { borderColor: '#E5E7EB' }]}
-              placeholder="15000"
-              placeholderTextColor="#9CA3AF"
-              value={reward}
-              onChangeText={setReward}
-              returnKeyType="next"
-              onSubmitEditing={() => timeEstimateInputRef.current?.focus()}
-              blurOnSubmit={false}
-              keyboardType="numeric"
-              autoComplete="off"
-            />
+            <View style={styles.rewardRow}>
+              <View style={styles.currencyBox}><Text style={styles.currencyText}>₡</Text></View>
+              <TextInput
+                ref={rewardInputRef}
+                style={[styles.input, { borderColor: '#E5E7EB', flex: 1 }]}
+                placeholder="15000"
+                placeholderTextColor="#9CA3AF"
+                value={reward}
+                onChangeText={setReward}
+                blurOnSubmit={false}
+                keyboardType="numeric"
+                autoComplete="off"
+              />
+            </View>
           </View>
 
+          <Text style={styles.sectionTitle}>⏰ Fecha exacta de finalización (Opcional)</Text>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Time Estimate</Text>
-            <TextInput
-              ref={timeEstimateInputRef}
-              style={[styles.input, { borderColor: '#E5E7EB' }]}
-              placeholder="e.g., 2 hours, 30 minutes"
-              placeholderTextColor="#9CA3AF"
-              value={timeEstimate}
-              onChangeText={setTimeEstimate}
-              returnKeyType="next"
-              onSubmitEditing={() => locationInputRef.current?.focus()}
-              blurOnSubmit={false}
-              autoCapitalize="words"
-              autoComplete="off"
-            />
+            <TouchableOpacity
+              style={[styles.input, { borderColor: '#E5E7EB', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
+              onPress={() => {
+                setPickerStep('date');
+                setPickerVisible(true);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: deadline ? '#111827' : '#9CA3AF' }}>
+                {deadline ? formatDateTime(deadline) : 'Seleccionar fecha y hora'}
+              </Text>
+              {deadline ? (
+                <TouchableOpacity onPress={() => { setDeadline(null); }}>
+                  <Text style={{ color: '#6B7280' }}>✕</Text>
+                </TouchableOpacity>
+              ) : (
+                <Text>📅</Text>
+              )}
+            </TouchableOpacity>
+            <Text style={styles.mapHint}>Se agenda al mediodía si no indicas hora.</Text>
           </View>
 
           {/* Location Preview & Picker */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Location</Text>
+            <Text style={styles.inputLabel}>Ubicación</Text>
             <View style={styles.mapPreviewContainer}>
               <MapView
-                provider={PROVIDER_GOOGLE}
+                provider={(isAmazonAndroid() || ((Platform.OS === 'android') && (Constants as any)?.appOwnership === 'expo')) ? undefined : PROVIDER_GOOGLE}
+                mapType={(isAmazonAndroid() || ((Platform.OS === 'android') && (Constants as any)?.appOwnership === 'expo')) ? 'none' : 'standard'}
                 style={styles.mapPreview}
                 initialRegion={{
                   latitude: (coords?.latitude ?? 9.9281),
@@ -204,6 +280,13 @@ export default function CreateTaskScreen() {
                 }}
                 onLongPress={(e) => setCoords(e.nativeEvent.coordinate)}
               >
+                {(isAmazonAndroid() || ((Platform.OS === 'android') && (Constants as any)?.appOwnership === 'expo')) && (
+                  <UrlTile
+                    urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    maximumZ={19}
+                    tileSize={256}
+                  />
+                )}
                 {coords && (
                   <Marker coordinate={coords} />
                 )}
@@ -224,6 +307,35 @@ export default function CreateTaskScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      {/* Date & Time Picker Modals */}
+      <DateTimePickerModal
+        isVisible={isPickerVisible}
+        mode={pickerStep}
+        date={deadline ?? new Date()}
+        onConfirm={(picked: Date) => {
+          if (pickerStep === 'date') {
+            // hold date and ask for time next
+            const withDate = new Date(picked);
+            if (!deadline) setDeadline(withDate);
+            else setDeadline(new Date(withDate));
+            setPickerStep('time');
+          } else {
+            const base = deadline ?? new Date();
+            const merged = new Date(base);
+            merged.setHours(picked.getHours(), picked.getMinutes(), 0, 0);
+            setDeadline(merged);
+            setPickerVisible(false);
+            setPickerStep('date');
+          }
+        }}
+        onCancel={() => {
+          if (pickerStep === 'time') {
+            // go back to date if cancelling time
+            setPickerStep('date');
+          }
+          setPickerVisible(false);
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -326,6 +438,31 @@ const styles = StyleSheet.create({
     minHeight: 100,
     paddingTop: 16,
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 10,
+    marginTop: 8,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 12,
+  },
+  categoryPill: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  categoryPillText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   createButton: {
     backgroundColor: '#FF6B35',
     borderRadius: 12,
@@ -356,9 +493,40 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     backgroundColor: '#FAFAFA',
   },
+  rewardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  currencyBox: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  currencyText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
   createButtonText: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
 });
+
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+function formatDateTime(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = pad2(d.getMonth() + 1);
+  const dd = pad2(d.getDate());
+  const hh = pad2(d.getHours());
+  const mi = pad2(d.getMinutes());
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+}

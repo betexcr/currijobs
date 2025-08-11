@@ -3,20 +3,27 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { fetchUserProfile } from '../lib/database';
+import { useLocalization } from '../contexts/LocalizationContext';
+import { fetchUserProfile, fetchReviewsForUserWithContext, type UserReviewWithContext, fetchUserProgress } from '../lib/database';
 import { mapProfileToProgress, computeEarnedBadges, BADGES, getRankColor } from '../lib/rank';
 
 export default function RankScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { theme } = useTheme();
+  const { t } = useLocalization();
   const [profile, setProfile] = useState<any | null>(null);
+  const [reviews, setReviews] = useState<UserReviewWithContext[]>([]);
 
   useEffect(() => {
     (async () => {
       if (!user) return;
       const p = await fetchUserProfile(user.id);
       setProfile(p || { id: user.id, full_name: user.email?.split('@')[0] || 'Usuario', rating: 0, total_jobs: 0, total_earnings: 0 });
+      const revs = await fetchReviewsForUserWithContext(user.id);
+      setReviews(revs);
+      // Optionally pull stored progress (xp/level/badges) for future use
+      const stored = await fetchUserProgress(user.id);
     })();
   }, [user]);
 
@@ -57,7 +64,7 @@ export default function RankScreen() {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}> 
-      <Text style={[styles.title, { color: theme.colors.text.primary }]}>Tu Rango</Text>
+      <Text style={[styles.title, { color: theme.colors.text.primary }]}>{t('yourRank') || 'Tu Rango'}</Text>
       <View style={[styles.rankCard, { borderColor: rankColor }]}> 
         <Text style={[styles.rankName, { color: theme.colors.text.primary }]}>{rank.name}</Text>
         <Text style={[styles.level, { color: theme.colors.text.secondary }]}>Nivel {level}</Text>
@@ -67,6 +74,9 @@ export default function RankScreen() {
         <Text style={[styles.progressText, { color: theme.colors.text.secondary }]}>
           Progreso en {rank.name}: {Math.round((p.progress || 0) * 100)}%
         </Text>
+        {!!profile?.rating && (
+          <Text style={[styles.progressText, { color: theme.colors.text.secondary, marginTop: 4 }]}>⭐ Promedio: {Number(profile.rating).toFixed(1)}</Text>
+        )}
       </View>
 
       <Text style={[styles.subtitle, { color: theme.colors.text.primary }]}>Insignias</Text>
@@ -81,6 +91,26 @@ export default function RankScreen() {
             </View>
           );
         })}
+      </View>
+
+      <Text style={[styles.subtitle, { color: theme.colors.text.primary }]}>Historial de Reseñas</Text>
+      <View style={{ gap: 8 }}>
+        {reviews.map((r) => (
+          <View key={r.id} style={[styles.reviewItem, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}> 
+            <View style={styles.reviewHeader}>
+              <Text style={[styles.reviewTitle, { color: theme.colors.text.primary }]}>{r.task_title || 'Tarea'}</Text>
+              <Text style={[styles.reviewRating, { color: theme.colors.text.primary }]}>⭐ {r.rating.toFixed(1)}</Text>
+            </View>
+            {!!r.comment && (
+              <Text style={[styles.reviewComment, { color: theme.colors.text.secondary }]}>{r.comment}</Text>
+            )}
+            <View style={styles.reviewMetaRow}>
+              <Text style={[styles.reviewMeta, { color: theme.colors.text.secondary }]}>Estado: {r.task_status || '—'}</Text>
+              <Text style={[styles.reviewMeta, { color: theme.colors.text.secondary }]}>Pago: {r.payment_amount ? `₡${r.payment_amount.toLocaleString()}` : '—'} ({r.payment_status || '—'})</Text>
+              <Text style={[styles.reviewMeta, { color: theme.colors.text.secondary }]}>Cliente: {r.reviewer_name || '—'}</Text>
+            </View>
+          </View>
+        ))}
       </View>
 
       <Text style={[styles.subtitle, { color: theme.colors.text.primary }]}>Cómo subir de rango</Text>
@@ -110,6 +140,13 @@ const styles = StyleSheet.create({
   badgeCat: { fontSize: 11, marginTop: 6 },
   tipCard: { padding: 12, borderRadius: 12 },
   tip: { fontSize: 13, marginBottom: 4 },
+  reviewItem: { borderWidth: 1, borderRadius: 12, padding: 12 },
+  reviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  reviewTitle: { fontSize: 14, fontWeight: '700' },
+  reviewRating: { fontSize: 12, fontWeight: '700' },
+  reviewComment: { fontSize: 12, marginTop: 6 },
+  reviewMetaRow: { marginTop: 6, gap: 6 },
+  reviewMeta: { fontSize: 11 },
 });
 
 

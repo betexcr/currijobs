@@ -52,7 +52,8 @@ export function computeLevel(profileLike: {
   const ratingBoost = Math.max(0, ((profileLike.rating || 0) - 4) * 5);
   const earningsBoost = Math.floor((profileLike.total_earnings || 0) / 150000); // 1 level per ¢150k
   const seedBoost = (hash(profileLike.id) % 3); // 0-2 for variety in demo
-  const level = Math.max(1, Math.min(120, base + ratingBoost + earningsBoost + seedBoost));
+  const raw = base + ratingBoost + earningsBoost + seedBoost;
+  const level = Math.max(1, Math.min(120, Math.floor(raw)));
   return level;
 }
 
@@ -67,10 +68,15 @@ export function getRankColor(rankName: RankName): string {
   return RANK_COLORS[rankName] || '#6B7280';
 }
 
-export function getLevelProgressWithinRank(level: number): { progress: number; currentMin: number; currentMax?: number } {
+export function getLevelProgressWithinRank(level: number, xp?: number): { progress: number; currentMin: number; currentMax?: number } {
   const rank = getRankForLevel(level);
   const currentMin = rank.minLevel;
   const currentMax = rank.maxLevel;
+  // If xp is provided, use the fractional part to grade progress toward next level
+  if (typeof xp === 'number') {
+    const fractional = Math.max(0, Math.min(0.99, (xp % 100) / 100));
+    return { progress: fractional, currentMin, currentMax };
+  }
   if (!currentMax) return { progress: 1, currentMin, currentMax };
   const span = Math.max(1, currentMax - currentMin + 1);
   const progress = Math.max(0, Math.min(1, (level - currentMin) / span));
@@ -134,7 +140,7 @@ export function computeEarnedBadges(profileLike: {
   return BADGES.map(b => ({ id: b.id, earned: earned.has(b.id), earnedAt: earned.has(b.id) ? now : undefined }));
 }
 
-export function mapProfileToProgress(profile: EnhancedUserProfile | (Partial<EnhancedUserProfile> & { id: string })): {
+export function mapProfileToProgress(profile: EnhancedUserProfile | (Partial<EnhancedUserProfile> & { id: string; xp?: number })): {
   level: number;
   rank: RankDefinition;
   progress: { progress: number; currentMin: number; currentMax?: number };
@@ -147,9 +153,12 @@ export function mapProfileToProgress(profile: EnhancedUserProfile | (Partial<Enh
     total_earnings: (profile as any).total_earnings ?? 0,
   });
   const rank = getRankForLevel(level);
-  const progress = getLevelProgressWithinRank(level);
+  const progress = getLevelProgressWithinRank(level, (profile as any).xp);
   const color = getRankColor(rank.name);
   return { level, rank, progress, color };
 }
+
+
+
 
 

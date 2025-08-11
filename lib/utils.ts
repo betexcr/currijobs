@@ -1,5 +1,7 @@
 import { TaskCategory } from './types';
 import type { LocalizationStrings } from './localization';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
 
 // Category icons mapping
 export const getCategoryIcon = (category: TaskCategory): string => {
@@ -196,4 +198,10 @@ export const debounce = <T extends (...args: any[]) => any>(
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
+};
+
+// Platform helpers
+export const isAmazonAndroid = (): boolean => {
+  const manufacturer = (Device.manufacturer || '').toLowerCase();
+  return Platform.OS === 'android' && manufacturer === 'amazon';
 };

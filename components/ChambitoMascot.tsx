@@ -1,15 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 
-// Import the Chambito mascot image
+// Import the Chambito mascot image (default)
 const chambitoImage = require('../assets/chambito.png');
+// Optional queen variant for loading overlays
+const chambitoQueen = require('../assets/chambito-queen.png');
 
 interface ChambitoMascotProps {
   mood?: 'happy' | 'working' | 'thinking' | 'success' | 'error';
-  size?: 'small' | 'medium' | 'large';
+  size?: 'small' | 'medium' | 'large' | 'giant';
   showMessage?: boolean;
   message?: string;
   style?: any;
+  variant?: 'default' | 'queen';
 }
 
 export default function ChambitoMascot({
@@ -17,6 +20,7 @@ export default function ChambitoMascot({
   showMessage = false,
   message = '',
   style,
+  variant = 'default',
 }: ChambitoMascotProps) {
   const getSizeStyle = () => {
     switch (size) {
@@ -24,6 +28,8 @@ export default function ChambitoMascot({
         return { width: 60, height: 60 };
       case 'large':
         return { width: 120, height: 120 };
+      case 'giant':
+        return { width: 360, height: 360 };
       default:
         return { width: 80, height: 80 };
     }
@@ -32,9 +38,9 @@ export default function ChambitoMascot({
   return (
     <View style={[styles.container, getSizeStyle(), style]}>
       <View style={[styles.mascotContainer, getSizeStyle()]}>
-        {/* Real Chambito Mascot Image */}
+        {/* Chambito Mascot Image */}
         <Image
-          source={chambitoImage}
+          source={variant === 'queen' ? chambitoQueen : chambitoImage}
           style={[styles.chambitoImage, getSizeStyle()]}
           resizeMode="contain"
         />

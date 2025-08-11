@@ -75,6 +75,7 @@ currijobs/
 
 ## Development
 - Start: `npx expo start --clear`
+- Start (local DB): `npm run start:local`
 - Lint: `npm run lint`
 - Type-check: `npm run typecheck` (if configured)
 - Format: `npm run format` (if configured)
@@ -82,6 +83,19 @@ currijobs/
 Offline mode notes:
 - Mock data is used for development to avoid backend dependencies.
 - Switching to online mode will involve enabling Supabase calls and credentials.
+
+### Local Docker DB (Postgres + PostGIS + seeds)
+
+1. `cd docker`
+2. `docker compose up -d`
+3. Postgres: `localhost:5433` (db/user/pass: `currijobs`)
+4. PostgREST is included and exposed at `http://localhost:3000`
+5. Start app with: `npm run start:local` (injects the required EXPO_PUBLIC_* env)
+   - For other devices on LAN, ensure `EXPO_PUBLIC_POSTGREST_URL` uses your LAN IP (e.g. `http://192.168.0.27:3000`)
+
+Init scripts:
+- `initdb/01_schema.sql` loads PostGIS, a minimal `auth.users`, and includes `supabase_schema_complete.sql`
+- `initdb/02_seed.sql` seeds users, tasks, offers, payments, reviews, badges, user_progress
 
 ## Testing & Quality
 - ESLint and Prettier are used to maintain code quality and consistency.

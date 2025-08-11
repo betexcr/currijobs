@@ -88,11 +88,26 @@ CREATE TABLE IF NOT EXISTS profiles (
   location TEXT,
   latitude DOUBLE PRECISION,
   longitude DOUBLE PRECISION,
+  home_address TEXT,
+  home_latitude DOUBLE PRECISION,
+  home_longitude DOUBLE PRECISION,
+  -- Optional geospatial columns for accurate distance queries
+  geog geography(Point,4326) GENERATED ALWAYS AS (
+    CASE WHEN longitude IS NOT NULL AND latitude IS NOT NULL
+      THEN ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography
+      ELSE NULL END
+  ) STORED,
+  home_geog geography(Point,4326) GENERATED ALWAYS AS (
+    CASE WHEN home_longitude IS NOT NULL AND home_latitude IS NOT NULL
+      THEN ST_SetSRID(ST_MakePoint(home_longitude, home_latitude), 4326)::geography
+      ELSE NULL END
+  ) STORED,
   rating DOUBLE PRECISION DEFAULT 0 CHECK (rating >= 0 AND rating <= 5),
   total_jobs INTEGER DEFAULT 0 CHECK (total_jobs >= 0),
   total_earnings INTEGER DEFAULT 0 CHECK (total_earnings >= 0),
   is_verified BOOLEAN DEFAULT FALSE,
   is_available BOOLEAN DEFAULT TRUE,
+  deleted_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -108,6 +123,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   location TEXT NOT NULL CHECK (length(location) <= 200),
   latitude DOUBLE PRECISION NOT NULL CHECK (latitude >= -90 AND latitude <= 90),
   longitude DOUBLE PRECISION NOT NULL CHECK (longitude >= -180 AND longitude <= 180),
+  geog geography(Point,4326) GENERATED ALWAYS AS (ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography) STORED,
+  tsv tsvector GENERATED ALWAYS AS (to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(description,''))) STORED,
   status task_status DEFAULT 'open',
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   assigned_to UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -117,6 +134,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   priority task_priority DEFAULT 'medium',
   is_urgent BOOLEAN DEFAULT FALSE,
   deadline TIMESTAMP WITH TIME ZONE,
+  deleted_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -133,6 +151,7 @@ CREATE TABLE IF NOT EXISTS offers (
   completed_at TIMESTAMP WITH TIME ZONE,
   rating INTEGER CHECK (rating >= 1 AND rating <= 5),
   review TEXT CHECK (length(review) <= 500),
+  deleted_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -146,6 +165,8 @@ CREATE TABLE IF NOT EXISTS reviews (
   rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
   comment TEXT CHECK (length(comment) <= 500),
   is_public BOOLEAN DEFAULT TRUE,
+  payment_id UUID REFERENCES payments(id) ON DELETE SET NULL,
+  deleted_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -160,6 +181,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   is_read BOOLEAN DEFAULT FALSE,
   related_task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
   related_offer_id UUID REFERENCES offers(id) ON DELETE CASCADE,
+  deleted_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -176,6 +198,7 @@ CREATE TABLE IF NOT EXISTS payments (
   payment_method payment_method NOT NULL,
   transaction_id TEXT,
   completed_at TIMESTAMP WITH TIME ZONE,
+  deleted_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -184,7 +207,8 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_category ON tasks(category);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
-CREATE INDEX IF NOT EXISTS idx_tasks_location ON tasks USING GIST (ST_SetSRID(ST_MakePoint(longitude, latitude), 4326));
+CREATE INDEX IF NOT EXISTS idx_tasks_location ON tasks USING GIST (geog);
+CREATE INDEX IF NOT EXISTS idx_tasks_tsv ON tasks USING GIN (tsv);
 CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_tasks_reward ON tasks(reward);
 
@@ -204,6 +228,71 @@ CREATE INDEX IF NOT EXISTS idx_payments_task_id ON payments(task_id);
 CREATE INDEX IF NOT EXISTS idx_payments_payer_id ON payments(payer_id);
 CREATE INDEX IF NOT EXISTS idx_payments_payee_id ON payments(payee_id);
 CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+
+-- Only one accepted offer per task
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_offer_task_accepted ON offers(task_id)
+WHERE status = 'accepted';
+
+-- Full text search helper index covered above
+
+-- Devices for push notifications
+CREATE TABLE IF NOT EXISTS user_devices (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  push_token TEXT NOT NULL,
+  platform TEXT CHECK (platform IN ('ios','android','web')),
+  last_seen_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE user_devices ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their devices" ON user_devices
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Badges and user_badges
+CREATE TABLE IF NOT EXISTS badges (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  category TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS user_badges (
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  badge_id TEXT REFERENCES badges(id) ON DELETE CASCADE,
+  earned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  source TEXT,
+  PRIMARY KEY(user_id, badge_id)
+);
+
+ALTER TABLE user_badges ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their badges" ON user_badges
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their badges" ON user_badges
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Reports (moderation)
+CREATE TABLE IF NOT EXISTS reports (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  reporter_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  target_type TEXT NOT NULL CHECK (target_type IN ('task','offer','review','profile')),
+  target_id UUID NOT NULL,
+  reason TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','in_review','resolved','dismissed')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their reports" ON reports
+  FOR SELECT USING (auth.uid() = reporter_id);
+
+CREATE POLICY "Users can create reports" ON reports
+  FOR INSERT WITH CHECK (auth.uid() = reporter_id);
 
 -- Row Level Security (RLS) Policies
 
@@ -322,6 +411,30 @@ CREATE TRIGGER update_notifications_updated_at BEFORE UPDATE ON notifications
 CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- User Progress for ranks/badges
+CREATE TABLE IF NOT EXISTS user_progress (
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  xp INTEGER DEFAULT 0 CHECK (xp >= 0),
+  level INTEGER DEFAULT 1 CHECK (level >= 1),
+  rank TEXT DEFAULT 'Novato',
+  badges JSONB DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own progress" ON user_progress
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can upsert their own progress" ON user_progress
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own progress" ON user_progress
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE TRIGGER update_user_progress_updated_at BEFORE UPDATE ON user_progress
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Function to calculate distance between two points
 CREATE OR REPLACE FUNCTION calculate_distance(
   lat1 DOUBLE PRECISION,
@@ -338,8 +451,8 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Sample data for testing
-INSERT INTO profiles (id, email, full_name, location, latitude, longitude) VALUES
-  ('mock-user-1', 'demo@currijobs.com', 'Demo User', 'San José, Costa Rica', 9.9281, -84.0907),
+INSERT INTO profiles (id, email, full_name, location, latitude, longitude, home_address, home_latitude, home_longitude) VALUES
+  ('00000000-0000-0000-0000-000000000001', 'demo@currijobs.com', 'Demo User', 'San José, Costa Rica', 9.9281, -84.0907, 'La Nopalera, San José', 9.923035, -84.043457),
   ('mock-user-2', 'juan@example.com', 'Juan Pérez', 'Escazú, Costa Rica', 9.9181, -84.0807),
   ('mock-user-3', 'maria@example.com', 'María González', 'Heredia, Costa Rica', 9.9984, -84.1169);
 
@@ -352,5 +465,14 @@ INSERT INTO tasks (title, description, category, reward, time_estimate, location
   ('Tech Support', 'Need help setting up a new laptop and transferring data from old computer. Basic tech skills required.', 'tech_support', 40000, '3 hours', 'Heredia, Costa Rica', 9.9984, -84.1169, 'mock-user-3'),
   ('Moving Help', 'Need help moving furniture from apartment to new house. Heavy lifting required.', 'moving_help', 50000, '6 hours', 'San José, Costa Rica', 9.9281, -84.0907, 'mock-user-2'),
   ('Cooking for Party', 'Need someone to help prepare food for a birthday party. Cooking experience preferred.', 'cooking', 45000, '5 hours', 'Escazú, San José, Costa Rica', 9.9181, -84.0807, 'mock-user-3');
+
+-- Seed badges
+INSERT INTO badges (id, name, description, category) VALUES
+  ('first-job','Primer Encargo','Completa tu primera tarea.','Milestone') ON CONFLICT (id) DO NOTHING;
+INSERT INTO badges (id, name, description, category) VALUES
+  ('hundred-wins','Cien Victorias','Completa 100 tareas.','Milestone') ON CONFLICT (id) DO NOTHING;
+INSERT INTO badges (id, name, description, category) VALUES
+  ('five-stars','5 Estrellas','Mantén 5.0 de calificación en 10+ trabajos.','Performance') ON CONFLICT (id) DO NOTHING;
+
 
 

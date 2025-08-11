@@ -24,6 +24,8 @@ interface FeatureFlags {
   ENABLE_DARK_MODE: boolean;
   ENABLE_COLORBLIND_MODE: boolean;
   ENABLE_MULTI_LANGUAGE: boolean;
+  // Navigation/UI toggles
+  ENABLE_LIST_VIEW_LINK: boolean; // Show "List" link in bottom toolbar
   
   // Development
   ENABLE_DEBUG_MODE: boolean;
@@ -59,6 +61,8 @@ const DEFAULT_FLAGS: FeatureFlags = {
   ENABLE_DARK_MODE: true,
   ENABLE_COLORBLIND_MODE: true,
   ENABLE_MULTI_LANGUAGE: true,
+  // Navigation/UI toggles
+  ENABLE_LIST_VIEW_LINK: false,
   
   // Development - Disabled by default
   ENABLE_DEBUG_MODE: false,
@@ -72,12 +76,13 @@ const DEFAULT_FLAGS: FeatureFlags = {
 
 // Environment variable parser
 const parseEnvFlag = (key: string, defaultValue: boolean): boolean => {
-  const envValue = process.env[key];
+  // Support both plain and EXPO_PUBLIC_ prefixed env vars
+  const envValue = process.env[key] ?? (process as any)?.env?.[`EXPO_PUBLIC_${key}`];
   if (envValue === undefined) return defaultValue;
   
   // Accept various truthy values
   const truthyValues = ['true', '1', 'yes', 'on', 'enabled'];
-  return truthyValues.includes(envValue.toLowerCase());
+  return truthyValues.includes(String(envValue).toLowerCase());
 };
 
 // Feature flags with environment variable support
@@ -104,6 +109,8 @@ export const FEATURE_FLAGS: FeatureFlags = {
   ENABLE_DARK_MODE: parseEnvFlag('ENABLE_DARK_MODE', DEFAULT_FLAGS.ENABLE_DARK_MODE),
   ENABLE_COLORBLIND_MODE: parseEnvFlag('ENABLE_COLORBLIND_MODE', DEFAULT_FLAGS.ENABLE_COLORBLIND_MODE),
   ENABLE_MULTI_LANGUAGE: parseEnvFlag('ENABLE_MULTI_LANGUAGE', DEFAULT_FLAGS.ENABLE_MULTI_LANGUAGE),
+  // Navigation/UI toggles
+  ENABLE_LIST_VIEW_LINK: parseEnvFlag('ENABLE_LIST_VIEW_LINK', DEFAULT_FLAGS.ENABLE_LIST_VIEW_LINK),
   
   // Development
   ENABLE_DEBUG_MODE: parseEnvFlag('ENABLE_DEBUG_MODE', DEFAULT_FLAGS.ENABLE_DEBUG_MODE),
@@ -116,7 +123,11 @@ export const FEATURE_FLAGS: FeatureFlags = {
 };
 
 // Helper functions
-export const isDemoMode = (): boolean => FEATURE_FLAGS.DEMO_MODE;
+let DEMO_MODE_OVERRIDE: boolean | null = null;
+export const setDemoModeOverride = (value: boolean) => {
+  DEMO_MODE_OVERRIDE = value;
+};
+export const isDemoMode = (): boolean => (DEMO_MODE_OVERRIDE !== null ? !!DEMO_MODE_OVERRIDE : FEATURE_FLAGS.DEMO_MODE);
 export const isProductionMode = (): boolean => !FEATURE_FLAGS.DEMO_MODE;
 export const useMockData = (): boolean => FEATURE_FLAGS.USE_MOCK_DATA || FEATURE_FLAGS.DEMO_MODE;
 export const useSupabase = (): boolean => FEATURE_FLAGS.USE_SUPABASE && !FEATURE_FLAGS.DEMO_MODE;

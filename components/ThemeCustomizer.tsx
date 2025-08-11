@@ -11,7 +11,18 @@ interface ThemeCustomizerProps {
 
 const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ onClose }) => {
   const { theme, setMode, setColorblind, toggleMode, setCustomColors: applyCustomColors, setCustomTheme, customColors: currentCustomColors } = useTheme();
-  const [customColors, setCustomColorsLocal] = useState<CustomThemeColors>(currentCustomColors || defaultCustomTheme);
+
+  const baseFromCurrentTheme = (): CustomThemeColors => ({
+    primary: theme.colors.primary.blue,
+    secondary: theme.colors.text.secondary,
+    accent: theme.colors.accent,
+    background: theme.colors.background,
+    surface: theme.colors.surface,
+    text: theme.colors.text.primary,
+    border: theme.colors.border,
+  });
+
+  const [customColors, setCustomColorsLocal] = useState<CustomThemeColors>(currentCustomColors || baseFromCurrentTheme());
   const [showColorPicker, setShowColorPicker] = useState<string | null>(null);
 
   const colorblindOptions: { type: ColorblindType; label: string; description: string }[] = [
@@ -49,7 +60,14 @@ const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ onClose }) => {
       'Are you sure you want to reset to default colors?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Reset', style: 'destructive', onPress: () => setCustomColorsLocal(defaultCustomTheme) },
+        { text: 'Reset', style: 'destructive', onPress: () => {
+            const base = baseFromCurrentTheme();
+            setCustomColorsLocal(base);
+            try {
+              applyCustomColors(base);
+              setCustomTheme('custom');
+            } catch {}
+          } },
       ]
     );
   };
@@ -83,51 +101,46 @@ const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ onClose }) => {
           Theme Mode
         </Text>
         <View style={styles.modeContainer}>
-          <TouchableOpacity
-            style={[
-              styles.modeButton,
-              { 
-                backgroundColor: theme.mode === 'light' ? theme.colors.primary.blue : theme.colors.surface,
-                borderColor: theme.colors.border,
-              }
-            ]}
-            onPress={() => setMode('light')}
-          >
-            <Ionicons 
-              name="sunny" 
-              size={20} 
-              color={theme.mode === 'light' ? 'white' : theme.colors.text.primary} 
-            />
-            <Text style={[
-              styles.modeText,
-              { color: theme.mode === 'light' ? 'white' : theme.colors.text.primary }
-            ]}>
-              Light
-            </Text>
-          </TouchableOpacity>
+          {/** Improve contrast in dark mode for unselected buttons */}
+          {(() => {
+            const isDark = theme.mode === 'dark';
+            const unselectedBg = isDark ? 'rgba(255,255,255,0.08)' : theme.colors.surface;
+            const unselectedBorder = isDark ? 'rgba(255,255,255,0.25)' : theme.colors.border;
+            const selectedBg = theme.colors.primary.blue;
+            const selectedText = 'white';
+            const unselectedText = theme.colors.text.primary;
+            return (
+              <>
+                <TouchableOpacity
+                  style={[
+                    styles.modeButton,
+                    {
+                      backgroundColor: theme.mode === 'light' ? selectedBg : unselectedBg,
+                      borderColor: theme.mode === 'light' ? selectedBg : unselectedBorder,
+                    },
+                  ]}
+                  onPress={() => setMode('light')}
+                >
+                  <Ionicons name="sunny" size={20} color={theme.mode === 'light' ? selectedText : unselectedText} />
+                  <Text style={[styles.modeText, { color: theme.mode === 'light' ? selectedText : unselectedText }]}>Light</Text>
+                </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.modeButton,
-              { 
-                backgroundColor: theme.mode === 'dark' ? theme.colors.primary.blue : theme.colors.surface,
-                borderColor: theme.colors.border,
-              }
-            ]}
-            onPress={() => setMode('dark')}
-          >
-            <Ionicons 
-              name="moon" 
-              size={20} 
-              color={theme.mode === 'dark' ? 'white' : theme.colors.text.primary} 
-            />
-            <Text style={[
-              styles.modeText,
-              { color: theme.mode === 'dark' ? 'white' : theme.colors.text.primary }
-            ]}>
-              Dark
-            </Text>
-          </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.modeButton,
+                    {
+                      backgroundColor: theme.mode === 'dark' ? selectedBg : unselectedBg,
+                      borderColor: theme.mode === 'dark' ? selectedBg : unselectedBorder,
+                    },
+                  ]}
+                  onPress={() => setMode('dark')}
+                >
+                  <Ionicons name="moon" size={20} color={theme.mode === 'dark' ? selectedText : unselectedText} />
+                  <Text style={[styles.modeText, { color: theme.mode === 'dark' ? selectedText : unselectedText }]}>Dark</Text>
+                </TouchableOpacity>
+              </>
+            );
+          })()}
         </View>
       </View>
 
@@ -136,37 +149,34 @@ const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ onClose }) => {
         <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
           Colorblind Support
         </Text>
-        {colorblindOptions.map((option) => (
-          <TouchableOpacity
-            key={option.type}
-            style={[
-              styles.colorblindOption,
-              { 
-                backgroundColor: theme.colorblind === option.type ? theme.colors.primary.blue : theme.colors.surface,
-                borderColor: theme.colors.border,
-              }
-            ]}
-            onPress={() => setColorblind(option.type)}
-          >
-            <View style={styles.colorblindInfo}>
-              <Text style={[
-                styles.colorblindLabel,
-                { color: theme.colorblind === option.type ? 'white' : theme.colors.text.primary }
-              ]}>
-                {option.label}
-              </Text>
-              <Text style={[
-                styles.colorblindDescription,
-                { color: theme.colorblind === option.type ? 'rgba(255,255,255,0.8)' : theme.colors.text.secondary }
-              ]}>
-                {option.description}
-              </Text>
-            </View>
-            {theme.colorblind === option.type && (
-              <Ionicons name="checkmark" size={20} color="white" />
-            )}
-          </TouchableOpacity>
-        ))}
+        {colorblindOptions.map((option) => {
+          const isDark = theme.mode === 'dark';
+          const unselectedBg = isDark ? 'rgba(255,255,255,0.08)' : theme.colors.surface;
+          const unselectedBorder = isDark ? 'rgba(255,255,255,0.25)' : theme.colors.border;
+          return (
+            <TouchableOpacity
+              key={option.type}
+              style={[
+                styles.colorblindOption,
+                {
+                  backgroundColor: theme.colorblind === option.type ? theme.colors.primary.blue : unselectedBg,
+                  borderColor: theme.colorblind === option.type ? theme.colors.primary.blue : unselectedBorder,
+                },
+              ]}
+              onPress={() => setColorblind(option.type)}
+            >
+              <View style={styles.colorblindInfo}>
+                <Text style={[styles.colorblindLabel, { color: theme.colorblind === option.type ? 'white' : theme.colors.text.primary }]}>
+                  {option.label}
+                </Text>
+                <Text style={[styles.colorblindDescription, { color: theme.colorblind === option.type ? 'rgba(255,255,255,0.85)' : theme.colors.text.secondary }]}>
+                  {option.description}
+                </Text>
+              </View>
+              {theme.colorblind === option.type && <Ionicons name="checkmark" size={20} color="white" />}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Custom Colors */}

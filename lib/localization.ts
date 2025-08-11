@@ -64,12 +64,20 @@ export interface LocalizationStrings {
   rejectOffer: string;
   completeTask: string;
   cancelTask: string;
+  // Offers management UI
+  selectWorker?: string;
+  offers?: string;
+  proposedReward?: string;
+  offerMessage?: string;
+  assign?: string;
   
   // My Tasks
   myCreatedTasks: string;
   myTasks: string;
   longPressMapToCreate: string;
   createNewTask: string;
+  myCreatedInProgress?: string;
+  assignedToMe?: string;
   
   // Search & Filter
   searchPlaceholder: string;
@@ -93,11 +101,14 @@ export interface LocalizationStrings {
   nearbyTasks: string;
   kilometersAway: string;
   milesAway: string;
+  goHome: string;
+  longPressToDropPin?: string;
   
   // Tooltips & Modals
   close: string;
   cancel: string;
   confirm: string;
+  back?: string;
   save: string;
   delete: string;
   edit: string;
@@ -198,6 +209,76 @@ export interface LocalizationStrings {
   // Additional strings
   category: string;
   postedBy?: string;
+  // Profile specific
+  overview: string;
+  recentPayments: string;
+  currentTasksPosted: string;
+  totalTasksCompleted: string;
+  earningsThisMonth: string;
+  lifetimeEarnings: string;
+  viewAllPayments: string;
+  paidBy: string;
+  account: string;
+  preferences: string;
+  support: string;
+  legal: string;
+  editProfile: string;
+  editProfileSubtitle: string;
+  identityVerification: string;
+  identityVerificationSubtitle: string;
+  paymentMethods: string;
+  paymentMethodsSubtitle: string;
+  pushNotifications: string;
+  pushNotificationsSubtitle: string;
+  locationServices: string;
+  locationServicesSubtitle: string;
+  appSettings: string;
+  appSettingsSubtitle: string;
+  helpCenter: string;
+  helpCenterSubtitle: string;
+  contactSupport: string;
+  contactSupportSubtitle: string;
+  sendFeedback: string;
+  sendFeedbackSubtitle: string;
+  privacyPolicy: string;
+  privacyPolicySubtitle: string;
+  termsOfService: string;
+  termsOfServiceSubtitle: string;
+  signOutSubtitle: string;
+  // Settings & Theme
+  themeMode: string;
+  lightMode: string;
+  darkMode: string;
+  colorblindSupport: string;
+  customTheme: string;
+  customizeTheme: string;
+  openThemeCustomizer: string;
+  customColorsLabel: string;
+  chooseCustomColors: string;
+  defaultThemeLabel: string;
+  useSystemPalette: string;
+  colorblindNormal: string;
+  colorblindProtanopia: string;
+  colorblindDeuteranopia: string;
+  colorblindTritanopia: string;
+  colorblindStandardColors: string;
+  // Rank screen
+  yourRank: string;
+  badgesLabel: string;
+  reviewsHistory: string;
+  howToRankUp: string;
+  tipCompleteHighRating: string;
+  tipVaryCategories: string;
+  tipParticipateEvents: string;
+  progress: string;
+  averageRating: string;
+  payment: string;
+  client: string;
+  // Status labels
+  openStatus?: string;
+  inProgressStatus?: string;
+  completedStatus?: string;
+  cancelledStatus?: string;
 }
 
 const localizations: Record<Language, LocalizationStrings> = {
@@ -265,12 +346,19 @@ const localizations: Record<Language, LocalizationStrings> = {
     rejectOffer: 'Rechazar Oferta',
     completeTask: 'Completar Trabajo',
     cancelTask: 'Cancelar Trabajo',
+      selectWorker: 'Selecciona quién realizará el trabajo',
+      offers: 'Ofertas',
+      proposedReward: 'Recompensa propuesta',
+      offerMessage: 'Mensaje',
+      assign: 'Asignar',
     
     // My Tasks
     myCreatedTasks: 'Mis Tareas Creadas',
     myTasks: 'Mis Tareas',
     longPressMapToCreate: 'Mantén presionado el mapa para crear una nueva tarea',
     createNewTask: 'Crear Nueva Tarea',
+      myCreatedInProgress: 'Mis creadas - En progreso',
+      assignedToMe: 'Asignadas a mí',
     
     // Search & Filter
     searchPlaceholder: 'Buscar trabajos, categorías o ubicaciones...',
@@ -294,10 +382,13 @@ const localizations: Record<Language, LocalizationStrings> = {
     nearbyTasks: 'Trabajos cercanos',
     kilometersAway: 'km de distancia',
     milesAway: 'millas de distancia',
+    goHome: 'Ir a casa',
+    longPressToDropPin: 'Mantén presionado para colocar/mover el pin',
     
     // Tooltips & Modals
     close: 'Cerrar',
     cancel: 'Cancelar',
+      back: 'Atrás',
     confirm: 'Confirmar',
     save: 'Guardar',
     delete: 'Eliminar',
@@ -399,6 +490,75 @@ const localizations: Record<Language, LocalizationStrings> = {
     // Additional strings
     category: 'Categoría',
     postedBy: 'Publicado por',
+    // Profile specific
+    overview: 'Resumen',
+    recentPayments: 'Pagos Recientes',
+    currentTasksPosted: 'Trabajos actuales publicados',
+    totalTasksCompleted: 'Trabajos completados',
+    earningsThisMonth: 'Ganancias de este mes',
+    lifetimeEarnings: 'Ganancias totales',
+    viewAllPayments: 'Ver todos los pagos',
+    paidBy: 'Pagado por',
+    account: 'Cuenta',
+    preferences: 'Preferencias',
+    support: 'Soporte',
+    legal: 'Legal',
+    editProfile: 'Editar Perfil',
+    editProfileSubtitle: 'Actualiza tu información personal',
+    identityVerification: 'Verificación de Identidad',
+    identityVerificationSubtitle: 'Verifica tu identidad para mayor confianza',
+    paymentMethods: 'Métodos de Pago',
+    paymentMethodsSubtitle: 'Administra tus opciones de pago',
+    pushNotifications: 'Notificaciones Push',
+    pushNotificationsSubtitle: 'Recibe avisos de nuevos trabajos y ofertas',
+    locationServices: 'Servicios de Ubicación',
+    locationServicesSubtitle: 'Permite el acceso a tu ubicación para trabajos cercanos',
+    appSettings: 'Configuración de la App',
+    appSettingsSubtitle: 'Idioma, tema y accesibilidad',
+    helpCenter: 'Centro de Ayuda',
+    helpCenterSubtitle: 'Obtén ayuda y respuestas',
+    contactSupport: 'Contactar Soporte',
+    contactSupportSubtitle: 'Comunícate con nuestro equipo de soporte',
+    sendFeedback: 'Enviar Comentarios',
+    sendFeedbackSubtitle: 'Ayúdanos a mejorar la app',
+    privacyPolicy: 'Política de Privacidad',
+    privacyPolicySubtitle: 'Cómo protegemos tus datos',
+    termsOfService: 'Términos de Servicio',
+    termsOfServiceSubtitle: 'Nuestros términos y condiciones',
+    signOutSubtitle: 'Cierra la sesión de tu cuenta',
+    // Settings & Theme
+    themeMode: 'Modo de tema',
+    lightMode: 'Modo claro',
+    darkMode: 'Modo oscuro',
+    colorblindSupport: 'Soporte daltonismo',
+    customTheme: 'Tema personalizado',
+    customizeTheme: 'Personalizar tema',
+    openThemeCustomizer: 'Abrir personalizador de tema',
+    customColorsLabel: 'Colores personalizados',
+    chooseCustomColors: 'Elige tu propia paleta de colores',
+    defaultThemeLabel: 'Tema predeterminado',
+    useSystemPalette: 'Usar paleta del sistema',
+    colorblindNormal: 'Visión normal',
+    colorblindProtanopia: 'Protanopia',
+    colorblindDeuteranopia: 'Deuteranopia',
+    colorblindTritanopia: 'Tritanopia',
+    colorblindStandardColors: 'Colores estándar',
+    // Rank screen
+    yourRank: 'Tu Rango',
+    badgesLabel: 'Insignias',
+    reviewsHistory: 'Historial de Reseñas',
+    howToRankUp: 'Cómo subir de rango',
+    tipCompleteHighRating: '• Completa más tareas y mantén una calificación alta.',
+    tipVaryCategories: '• Varía las categorías para optar por “Maestro de Categoría”.',
+    tipParticipateEvents: '• Participa en eventos especiales para insignias de temporada.',
+    progress: 'Progreso',
+    averageRating: 'Promedio',
+    payment: 'Pago',
+    client: 'Cliente',
+    openStatus: 'Abierta',
+    inProgressStatus: 'En progreso',
+    completedStatus: 'Completada',
+    cancelledStatus: 'Cancelada',
   },
   
   'en': {
@@ -465,12 +625,19 @@ const localizations: Record<Language, LocalizationStrings> = {
     rejectOffer: 'Reject Offer',
     completeTask: 'Complete Task',
     cancelTask: 'Cancel Task',
+      selectWorker: 'Select the worker for this job',
+      offers: 'Offers',
+      proposedReward: 'Proposed reward',
+      offerMessage: 'Message',
+      assign: 'Assign',
     
     // My Tasks
     myCreatedTasks: 'My Created Tasks',
     myTasks: 'My Tasks',
     longPressMapToCreate: 'Long press the map to create a new task',
     createNewTask: 'Create New Task',
+      myCreatedInProgress: 'My Created - In Progress',
+      assignedToMe: 'Assigned To Me',
     
     // Search & Filter
     searchPlaceholder: 'Search tasks, categories, or locations...',
@@ -494,10 +661,13 @@ const localizations: Record<Language, LocalizationStrings> = {
     nearbyTasks: 'Nearby tasks',
     kilometersAway: 'km away',
     milesAway: 'miles away',
+    goHome: 'Go Home',
+    longPressToDropPin: 'Long press to drop/move the pin',
     
     // Tooltips & Modals
     close: 'Close',
     cancel: 'Cancel',
+      back: 'Back',
     confirm: 'Confirm',
     save: 'Save',
     delete: 'Delete',
@@ -599,6 +769,75 @@ const localizations: Record<Language, LocalizationStrings> = {
     // Additional strings
     category: 'Category',
     postedBy: 'Posted by',
+    // Profile specific
+    overview: 'Overview',
+    recentPayments: 'Recent Payments',
+    currentTasksPosted: 'Current tasks posted',
+    totalTasksCompleted: 'Total tasks completed',
+    earningsThisMonth: 'Earnings this month',
+    lifetimeEarnings: 'Lifetime earnings',
+    viewAllPayments: 'View all payments',
+    paidBy: 'Paid by',
+    account: 'Account',
+    preferences: 'Preferences',
+    support: 'Support',
+    legal: 'Legal',
+    editProfile: 'Edit Profile',
+    editProfileSubtitle: 'Update your personal information',
+    identityVerification: 'Identity Verification',
+    identityVerificationSubtitle: 'Verify your identity for better trust',
+    paymentMethods: 'Payment Methods',
+    paymentMethodsSubtitle: 'Manage your payment options',
+    pushNotifications: 'Push Notifications',
+    pushNotificationsSubtitle: 'Get notified about new tasks and offers',
+    locationServices: 'Location Services',
+    locationServicesSubtitle: 'Allow location access for nearby tasks',
+    appSettings: 'App Settings',
+    appSettingsSubtitle: 'Language, theme, and accessibility',
+    helpCenter: 'Help Center',
+    helpCenterSubtitle: 'Get help and find answers',
+    contactSupport: 'Contact Support',
+    contactSupportSubtitle: 'Reach out to our support team',
+    sendFeedback: 'Send Feedback',
+    sendFeedbackSubtitle: 'Help us improve the app',
+    privacyPolicy: 'Privacy Policy',
+    privacyPolicySubtitle: 'How we protect your data',
+    termsOfService: 'Terms of Service',
+    termsOfServiceSubtitle: 'Our terms and conditions',
+    signOutSubtitle: 'Sign out of your account',
+    // Settings & Theme
+    themeMode: 'Theme Mode',
+    lightMode: 'Light Mode',
+    darkMode: 'Dark Mode',
+    colorblindSupport: 'Colorblind Support',
+    customTheme: 'Custom Theme',
+    customizeTheme: 'Customize Theme',
+    openThemeCustomizer: 'Open Theme Customizer',
+    customColorsLabel: 'Custom Colors',
+    chooseCustomColors: 'Choose your own color scheme',
+    defaultThemeLabel: 'Default Theme',
+    useSystemPalette: 'Use system color palette',
+    colorblindNormal: 'Normal Vision',
+    colorblindProtanopia: 'Protanopia',
+    colorblindDeuteranopia: 'Deuteranopia',
+    colorblindTritanopia: 'Tritanopia',
+    colorblindStandardColors: 'Standard colors',
+    // Rank screen
+    yourRank: 'Your Rank',
+    badgesLabel: 'Badges',
+    reviewsHistory: 'Reviews History',
+    howToRankUp: 'How to rank up',
+    tipCompleteHighRating: '• Complete more tasks and keep a high rating.',
+    tipVaryCategories: '• Vary categories to aim for “Category Master”.',
+    tipParticipateEvents: '• Participate in seasonal events for special badges.',
+    progress: 'Progress',
+    averageRating: 'Average',
+    payment: 'Payment',
+    client: 'Client',
+    openStatus: 'Open',
+    inProgressStatus: 'In Progress',
+    completedStatus: 'Completed',
+    cancelledStatus: 'Cancelled',
   },
   
   'zh': {
@@ -694,6 +933,8 @@ const localizations: Record<Language, LocalizationStrings> = {
     nearbyTasks: '附近的任务',
     kilometersAway: '公里远',
     milesAway: '英里远',
+    goHome: '回家',
+    longPressToDropPin: '长按以放置/移动图钉',
     
     // Tooltips & Modals
     close: '关闭',
@@ -798,6 +1039,75 @@ const localizations: Record<Language, LocalizationStrings> = {
     
     // Additional strings
     category: '类别',
+    // Profile specific
+    overview: '概览',
+    recentPayments: '最近付款',
+    currentTasksPosted: '当前发布的任务',
+    totalTasksCompleted: '完成的任务总数',
+    earningsThisMonth: '本月收入',
+    lifetimeEarnings: '累计收入',
+    viewAllPayments: '查看所有付款',
+    paidBy: '付款方',
+    account: '账户',
+    preferences: '偏好',
+    support: '支持',
+    legal: '法律',
+    editProfile: '编辑资料',
+    editProfileSubtitle: '更新您的个人信息',
+    identityVerification: '身份验证',
+    identityVerificationSubtitle: '验证身份以提高信任度',
+    paymentMethods: '支付方式',
+    paymentMethodsSubtitle: '管理您的支付选项',
+    pushNotifications: '推送通知',
+    pushNotificationsSubtitle: '接收新任务和报价通知',
+    locationServices: '定位服务',
+    locationServicesSubtitle: '允许访问您的位置以查看附近任务',
+    appSettings: '应用设置',
+    appSettingsSubtitle: '语言、主题和无障碍',
+    helpCenter: '帮助中心',
+    helpCenterSubtitle: '获取帮助和答案',
+    contactSupport: '联系支持',
+    contactSupportSubtitle: '联系技术支持团队',
+    sendFeedback: '发送反馈',
+    sendFeedbackSubtitle: '帮助我们改进应用',
+    privacyPolicy: '隐私政策',
+    privacyPolicySubtitle: '我们如何保护您的数据',
+    termsOfService: '服务条款',
+    termsOfServiceSubtitle: '我们的条款和条件',
+    signOutSubtitle: '退出您的账户',
+    // Settings & Theme
+    themeMode: '主题模式',
+    lightMode: '浅色模式',
+    darkMode: '深色模式',
+    colorblindSupport: '色盲支持',
+    customTheme: '自定义主题',
+    customizeTheme: '自定义主题',
+    openThemeCustomizer: '打开主题定制器',
+    customColorsLabel: '自定义颜色',
+    chooseCustomColors: '选择您自己的配色方案',
+    defaultThemeLabel: '默认主题',
+    useSystemPalette: '使用系统配色',
+    colorblindNormal: '正常视觉',
+    colorblindProtanopia: '红色盲',
+    colorblindDeuteranopia: '绿色盲',
+    colorblindTritanopia: '蓝黄色盲',
+    colorblindStandardColors: '标准颜色',
+    // Rank screen
+    yourRank: '你的等级',
+    badgesLabel: '徽章',
+    reviewsHistory: '评价历史',
+    howToRankUp: '如何提升等级',
+    tipCompleteHighRating: '• 完成更多任务并保持高评分。',
+    tipVaryCategories: '• 多尝试不同类别以获得“类别大师”。',
+    tipParticipateEvents: '• 参加季节性活动以获取特殊徽章。',
+    progress: '进度',
+    averageRating: '平均评分',
+    payment: '付款',
+    client: '客户',
+    openStatus: '开放',
+    inProgressStatus: '进行中',
+    completedStatus: '已完成',
+    cancelledStatus: '已取消',
   },
 };
 

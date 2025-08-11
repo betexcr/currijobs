@@ -10,11 +10,12 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, Region, UrlTile } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useAuth } from '../contexts/AuthContext';
 import { taskService, Task, TASK_CATEGORIES } from '../lib/database';
 import ChambitoMascot from '../components/ChambitoMascot';
+import { isAmazonAndroid } from '../lib/utils';
 
 interface TaskWithDistance extends Task {
   distance: number;
@@ -263,14 +264,22 @@ export default function MapScreen() {
       <View className="flex-1">
         <MapView
           ref={mapRef}
-          provider={PROVIDER_GOOGLE}
+          provider={isAmazonAndroid() ? undefined : PROVIDER_GOOGLE}
           style={{ flex: 1 }}
+          mapType={isAmazonAndroid() ? 'none' : 'standard'}
           region={region}
           showsUserLocation={true}
           showsMyLocationButton={true}
           showsCompass={true}
           showsScale={true}
         >
+          {isAmazonAndroid() && (
+            <UrlTile
+              urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maximumZ={19}
+              tileSize={256}
+            />
+          )}
           {filteredTasks.map((task) => (
             <Marker
               key={task.id}

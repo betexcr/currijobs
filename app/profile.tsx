@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useLocalization } from '../contexts/LocalizationContext';
 import ChambitoMascot from '../components/ChambitoMascot';
 import UserProfileCard from '../components/UserProfileCard';
 import BottomNavigation from '../components/BottomNavigation';
@@ -35,7 +36,8 @@ interface ProfileItem {
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
-  const { theme, mode, toggleMode } = useTheme();
+  const { theme } = useTheme();
+  const { t } = useLocalization();
   const router = useRouter();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
@@ -45,21 +47,21 @@ export default function ProfileScreen() {
 
   const formatCurrency = (amount: number) => `₡${Number(amount || 0).toLocaleString()}`;
 
-  // Demo user enhanced profile fallback
+  // Enhanced profile derived from real stats (no mock data)
   const enhancedProfile = useMemo(() => {
     return {
-      id: user?.id || 'mock-user-1',
-      name: user?.email?.split('@')[0] || 'Demo User',
-      rating: 4.8,
-      total_reviews: 32,
-      completed_tasks: Math.max(58, stats.totalCompleted),
-      total_earnings: Math.max(1285000, stats.lifetimeEarnings),
-      wallet_balance: 85000,
-      member_since: '2024-01-15',
-      verified: true,
-      location: 'San José, Costa Rica',
+      id: user?.id || '',
+      name: user?.email?.split('@')[0] || '',
+      rating: Number(user?.rating || 0),
+      total_reviews: Number(user?.total_reviews || 0),
+      completed_tasks: stats.totalCompleted,
+      total_earnings: stats.lifetimeEarnings,
+      wallet_balance: 0,
+      member_since: user?.created_at || new Date().toISOString(),
+      verified: Boolean(user?.is_verified),
+      location: user?.location || '',
     };
-  }, [user, stats.totalCompleted]);
+  }, [user, stats.totalCompleted, stats.lifetimeEarnings]);
 
   useEffect(() => {
     (async () => {
@@ -112,28 +114,28 @@ export default function ProfileScreen() {
 
   const profileSections: ProfileSection[] = [
     {
-      title: 'Account',
+      title: t('account'),
       items: [
         {
           id: 'profile',
-          title: 'Edit Profile',
-          subtitle: 'Update your personal information',
+          title: t('editProfile'),
+          subtitle: t('editProfileSubtitle'),
           icon: '👤',
           action: 'navigate',
           onPress: () => Alert.alert('Coming Soon', 'Profile editing will be available soon!')
         },
         {
           id: 'verification',
-          title: 'Identity Verification',
-          subtitle: 'Verify your identity for better trust',
+          title: t('identityVerification'),
+          subtitle: t('identityVerificationSubtitle'),
           icon: '✅',
           action: 'navigate',
           onPress: () => Alert.alert('Coming Soon', 'Identity verification will be available soon!')
         },
         {
           id: 'payment',
-          title: 'Payment Methods',
-          subtitle: 'Manage your payment options',
+          title: t('paymentMethods'),
+          subtitle: t('paymentMethodsSubtitle'),
           icon: '💳',
           action: 'navigate',
           onPress: () => Alert.alert('Coming Soon', 'Payment methods will be available soon!')
@@ -141,12 +143,12 @@ export default function ProfileScreen() {
       ]
     },
     {
-      title: 'Preferences',
+      title: t('preferences'),
       items: [
         {
           id: 'notifications',
-          title: 'Push Notifications',
-          subtitle: 'Get notified about new tasks and offers',
+          title: t('pushNotifications'),
+          subtitle: t('pushNotificationsSubtitle'),
           icon: '🔔',
           action: 'toggle',
           value: notificationsEnabled,
@@ -154,8 +156,8 @@ export default function ProfileScreen() {
         },
         {
           id: 'location',
-          title: 'Location Services',
-          subtitle: 'Allow location access for nearby tasks',
+          title: t('locationServices'),
+          subtitle: t('locationServicesSubtitle'),
           icon: '📍',
           action: 'toggle',
           value: locationEnabled,
@@ -163,8 +165,8 @@ export default function ProfileScreen() {
         },
         {
           id: 'settings',
-          title: 'App Settings',
-          subtitle: 'Language, theme, and accessibility',
+          title: t('appSettings'),
+          subtitle: t('appSettingsSubtitle'),
           icon: '⚙️',
           action: 'navigate',
           onPress: () => router.push('/settings')
@@ -173,28 +175,28 @@ export default function ProfileScreen() {
       ]
     },
     {
-      title: 'Support',
+      title: t('support'),
       items: [
         {
           id: 'help',
-          title: 'Help Center',
-          subtitle: 'Get help and find answers',
+          title: t('helpCenter'),
+          subtitle: t('helpCenterSubtitle'),
           icon: '❓',
           action: 'navigate',
           onPress: () => Alert.alert('Help Center', 'Help center will be available soon!')
         },
         {
           id: 'contact',
-          title: 'Contact Support',
-          subtitle: 'Reach out to our support team',
+          title: t('contactSupport'),
+          subtitle: t('contactSupportSubtitle'),
           icon: '📞',
           action: 'navigate',
           onPress: () => Alert.alert('Contact Support', 'Contact support will be available soon!')
         },
         {
           id: 'feedback',
-          title: 'Send Feedback',
-          subtitle: 'Help us improve the app',
+          title: t('sendFeedback'),
+          subtitle: t('sendFeedbackSubtitle'),
           icon: '📝',
           action: 'navigate',
           onPress: () => Alert.alert('Feedback', 'Feedback feature will be available soon!')
@@ -202,28 +204,28 @@ export default function ProfileScreen() {
       ]
     },
     {
-      title: 'Legal',
+      title: t('legal'),
       items: [
         {
           id: 'privacy',
-          title: 'Privacy Policy',
-          subtitle: 'How we protect your data',
+          title: t('privacyPolicy'),
+          subtitle: t('privacyPolicySubtitle'),
           icon: '🔒',
           action: 'navigate',
           onPress: () => Alert.alert('Privacy Policy', 'Privacy policy will be available soon!')
         },
         {
           id: 'terms',
-          title: 'Terms of Service',
-          subtitle: 'Our terms and conditions',
+          title: t('termsOfService'),
+          subtitle: t('termsOfServiceSubtitle'),
           icon: '📄',
           action: 'navigate',
           onPress: () => Alert.alert('Terms of Service', 'Terms of service will be available soon!')
         },
         {
           id: 'logout',
-          title: 'Sign Out',
-          subtitle: 'Sign out of your account',
+          title: t('logout'),
+          subtitle: t('signOutSubtitle'),
           icon: '🚪',
           action: 'logout',
           onPress: handleLogout
@@ -240,7 +242,7 @@ export default function ProfileScreen() {
           <View style={styles.headerLeft}>
             <ChambitoMascot mood="happy" size="small" />
             <Text style={[styles.headerTitle, { color: 'white' }]}>
-              Profile
+              {t('profile')}
             </Text>
           </View>
           <TouchableOpacity
@@ -256,7 +258,7 @@ export default function ProfileScreen() {
       <View style={[styles.userCard, { backgroundColor: theme.colors.surface }]}> 
         <UserProfileCard 
           user={enhancedProfile} 
-          onPress={() => router.push('/wallet')} 
+          onPress={() => router.push('/rank')} 
           onAvatarPress={() => router.push('/rank')}
         />
       </View>
@@ -265,13 +267,13 @@ export default function ProfileScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Activity Overview */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Overview</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>{t('overview')}</Text>
           <View style={[styles.sectionContent, { backgroundColor: theme.colors.surface }]}> 
             <View style={[styles.profileItem, { borderBottomWidth: 1, borderBottomColor: theme.colors.border }]}> 
               <View style={styles.itemLeft}>
                 <Text style={styles.itemIcon}>📌</Text>
                 <View style={styles.itemText}>
-                  <Text style={[styles.itemTitle, { color: theme.colors.text.primary }]}>Current tasks posted</Text>
+                  <Text style={[styles.itemTitle, { color: theme.colors.text.primary }]}>{t('currentTasksPosted')}</Text>
                   <Text style={[styles.itemSubtitle, { color: theme.colors.text.secondary }]}>
                     {stats.currentPosted} active
                   </Text>
@@ -285,7 +287,7 @@ export default function ProfileScreen() {
               <View style={styles.itemLeft}>
                 <Text style={styles.itemIcon}>✅</Text>
                 <View style={styles.itemText}>
-                  <Text style={[styles.itemTitle, { color: theme.colors.text.primary }]}>Total tasks completed</Text>
+                  <Text style={[styles.itemTitle, { color: theme.colors.text.primary }]}>{t('totalTasksCompleted')}</Text>
                   <Text style={[styles.itemSubtitle, { color: theme.colors.text.secondary }]}>
                     {stats.totalCompleted} total
                   </Text>
@@ -299,7 +301,7 @@ export default function ProfileScreen() {
               <View style={styles.itemLeft}>
                 <Text style={styles.itemIcon}>📈</Text>
                 <View style={styles.itemText}>
-                  <Text style={[styles.itemTitle, { color: theme.colors.text.primary }]}>Earnings this month</Text>
+                  <Text style={[styles.itemTitle, { color: theme.colors.text.primary }]}>{t('earningsThisMonth')}</Text>
                   <Text style={[styles.itemSubtitle, { color: theme.colors.text.secondary }]}>
                     {formatCurrency(stats.earningsThisMonth)}
                   </Text>
@@ -313,7 +315,7 @@ export default function ProfileScreen() {
               <View style={styles.itemLeft}>
                 <Text style={styles.itemIcon}>💼</Text>
                 <View style={styles.itemText}>
-                  <Text style={[styles.itemTitle, { color: theme.colors.text.primary }]}>Lifetime earnings</Text>
+                  <Text style={[styles.itemTitle, { color: theme.colors.text.primary }]}>{t('lifetimeEarnings')}</Text>
                   <Text style={[styles.itemSubtitle, { color: theme.colors.text.secondary }]}>
                     {formatCurrency(stats.lifetimeEarnings)}
                   </Text>
@@ -329,7 +331,7 @@ export default function ProfileScreen() {
         {/* Recent Payments */}
         {payments.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Recent Payments</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>{t('recentPayments')}</Text>
             <View style={[styles.sectionContent, { backgroundColor: theme.colors.surface }]}> 
               {payments.slice(0, 5).map((p, idx) => (
                 <TouchableOpacity
@@ -344,9 +346,9 @@ export default function ProfileScreen() {
                       <Text style={[styles.itemTitle, { color: theme.colors.text.primary }]}>
                         {p.description}
                       </Text>
-                      <Text style={[styles.itemSubtitle, { color: theme.colors.text.secondary }]}>
-                        Paid by {p.paidByName || 'User'}
-                      </Text>
+                      {p.paidByName && (
+                        <Text style={[styles.itemSubtitle, { color: theme.colors.text.secondary }]}>{t('paidBy')}: {p.paidByName}</Text>
+                      )}
                     </View>
                   </View>
                   <View style={styles.itemRight}>
@@ -359,7 +361,7 @@ export default function ProfileScreen() {
                   onPress={() => router.push('/wallet')}
                   style={[styles.viewAllButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
                 >
-                  <Text style={[styles.viewAllButtonText, { color: theme.colors.text.primary }]}>View all payments</Text>
+                  <Text style={[styles.viewAllButtonText, { color: theme.colors.text.primary }]}>{t('viewAllPayments')}</Text>
                 </TouchableOpacity>
               </View>
             </View>

@@ -4,7 +4,7 @@ import { typography, spacing } from '../../lib/designSystem';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 // import { useTheme } from '../../contexts/ThemeContext';
-import { fetchTaskById } from '../../lib/database';
+import { fetchTaskById, fetchUserProfile, fetchPaymentsCountsForUser } from '../../lib/database';
 import { Task } from '../../lib/types';
 // import CategoryIcon from '../../components/CategoryIcon';
 import ChambitoMascot from '../../components/ChambitoMascot';
@@ -16,6 +16,8 @@ const { height } = Dimensions.get('window');
 export default function TaskDetailScreen() {
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
+  const [poster, setPoster] = useState<any | null>(null);
+  const [paymentsCount, setPaymentsCount] = useState<{ made: number; received: number }>({ made: 0, received: 0 });
   const { id } = useLocalSearchParams();
   const { user } = useAuth();
   // const { theme } = useTheme();
@@ -40,6 +42,35 @@ export default function TaskDetailScreen() {
       }
 
       setTask(taskData);
+      if (taskData.user_id) {
+        try {
+          const profile = await fetchUserProfile(taskData.user_id);
+          if (profile) {
+            const mapped = {
+              id: profile.id,
+              name: profile.full_name || 'User',
+              avatar: profile.avatar_url,
+              rating: profile.rating ?? 0,
+              total_reviews: 0,
+              completed_tasks: profile.total_jobs ?? 0,
+              total_earnings: profile.total_earnings ?? 0,
+              wallet_balance: 0,
+              member_since: profile.created_at || new Date().toISOString(),
+              location: profile.location,
+              verified: profile.is_verified ?? false,
+            };
+            setPoster(mapped);
+            const counts = await fetchPaymentsCountsForUser(taskData.user_id);
+            setPaymentsCount(counts);
+          } else {
+            setPoster(null);
+          }
+        } catch {
+          setPoster(null);
+        }
+      } else {
+        setPoster(null);
+      }
     } catch {
       Alert.alert('Error', 'An unexpected error occurred');
     } finally {
@@ -112,27 +143,20 @@ export default function TaskDetailScreen() {
           {/* User Profile Section */}
           <View style={styles.userProfileSection}>
             <Text style={styles.sectionTitle}>{t('profile')}</Text>
-            <UserProfileCard
-              user={{
-                id: task.user_id,
-                name: 'Carlos Mendez',
-                avatar: undefined,
-                rating: 4.7,
-                total_reviews: 23,
-                completed_tasks: 45,
-                total_earnings: 1250000,
-                wallet_balance: 85000,
-                member_since: '2023-03-15',
-                location: 'San José, Costa Rica',
-                verified: true,
-              }}
-              compact={true}
-            />
+            {poster && (
+              <UserProfileCard
+                user={poster}
+                compact={true}
+              />
+            )}
+            <Text style={{ marginTop: 6, color: '#6B7280' }}>
+              Payments: made {paymentsCount.made} · received {paymentsCount.received}
+            </Text>
           </View>
         </View>
       </View>
 
-      {/* Accept Offer Button - Like in the image */}
+      {/* Actions */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={[styles.acceptButton, { backgroundColor: '#1E3A8A' }]}
@@ -140,6 +164,21 @@ export default function TaskDetailScreen() {
         >
           <Text style={styles.acceptButtonText}>Accept Offer</Text>
         </TouchableOpacity>
+        {task && (
+          <TouchableOpacity
+            style={[styles.acceptButton, { backgroundColor: '#0F3576', marginTop: 12 }]}
+            onPress={() => {
+              // Determine peer: if current user is owner, peer is assigned_to; otherwise peer is owner
+              const ownerId = (task as any).user_id as string | undefined;
+              const workerId = (task as any).assigned_to as string | undefined;
+              const peerId = user?.id === ownerId ? workerId : ownerId;
+              if (!peerId) { Alert.alert('Chat', 'No assigned user to chat with yet.'); return; }
+              router.push({ pathname: `/chat/${task.id}`, params: { peerId } });
+            }}
+          >
+            <Text style={styles.acceptButtonText}>Chat</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

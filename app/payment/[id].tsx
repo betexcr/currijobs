@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, UrlTile } from 'react-native-maps';
 import { useTheme } from '../../contexts/ThemeContext';
+import { isAmazonAndroid } from '../../lib/utils';
 import { fetchPaymentsForUser } from '../../lib/database';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -50,6 +51,7 @@ export default function PaymentDetailsScreen() {
           <MapView
             style={styles.map}
             pointerEvents="none"
+            mapType={isAmazonAndroid() ? 'none' : 'standard'}
             initialRegion={{
               latitude: payment.jobLatitude,
               longitude: payment.jobLongitude,
@@ -57,6 +59,13 @@ export default function PaymentDetailsScreen() {
               longitudeDelta: 0.01,
             }}
           >
+            {isAmazonAndroid() && (
+              <UrlTile
+                urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                maximumZ={19}
+                tileSize={256}
+              />
+            )}
             <Marker coordinate={{ latitude: payment.jobLatitude, longitude: payment.jobLongitude }} />
           </MapView>
           {!!payment.jobLocationText && (
