@@ -4,6 +4,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "android": { "buildType": "apk" },
+      "ios": { "simulator": true },
       "env": {
         "EXPO_PUBLIC_DEMO_MODE": "false",
         "EXPO_PUBLIC_USE_SUPABASE": "true",
