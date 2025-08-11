@@ -83,6 +83,7 @@ coverage-final.json
 .env
 .env.*
 !.env.example
+!.env.development
 
 # Certificates / credentials (already covering many native keys above)
 *.cer
@@ -97,3 +98,5 @@ coverage-final.json
 .tmp/
 tmp/
 temp/
+
+bun.lock
