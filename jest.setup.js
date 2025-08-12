@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import '@testing-library/jest-native/extend-expect';
 
 // Mock react-native-dotenv
@@ -32,6 +33,9 @@ jest.mock('react-native-reanimated', () => {
 
 // Mock react-native-gesture-handler
 jest.mock('react-native-gesture-handler', () => {});
+
+// Provide a simple fetch mock to avoid lint/runtime errors in tests
+global.fetch = jest.fn();
 
 // Mock react-native-screens
 jest.mock('react-native-screens', () => ({

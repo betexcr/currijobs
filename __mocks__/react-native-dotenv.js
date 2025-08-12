@@ -1,5 +1,3 @@
-module.exports = {
-  SUPABASE_URL: 'https://test.supabase.co',
-  SUPABASE_ANON_KEY: 'test-anon-key',
-};
+export const SUPABASE_URL = 'https://test.supabase.co';
+export const SUPABASE_ANON_KEY = 'test-anon-key';
 

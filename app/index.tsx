@@ -396,9 +396,8 @@ export default function MapScreen() {
       Alert.alert('Error', 'An unexpected error occurred');
     } finally {
       const elapsed = Date.now() - start;
-      if (elapsed < 1000) {
-        await new Promise((res) => setTimeout(res, 1000 - elapsed));
-      }
+      const delay = Math.max(0, 1000 - elapsed);
+      await new Promise((res) => setTimeout(res, delay));
       setLoading(false);
     }
   };
