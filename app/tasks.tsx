@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
   TextInput,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
@@ -239,7 +240,11 @@ export default function TaskListScreen() {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}> 
         <View style={styles.loadingContainer}> 
-          <ChambitoMascot mood="sad" size="large" />
+          <Image
+            source={require('../assets/task-not-found.png')}
+            style={styles.emptyImage}
+            resizeMode="contain"
+          />
           <Text style={[styles.loadingText, { color: theme.colors.text.primary }]}>No tasks found</Text>
           <View style={{ marginTop: 16, flexDirection: 'row', gap: 8 }}>
             <TouchableOpacity onPress={() => router.push('/')} style={[styles.mapButton, { backgroundColor: '#1E3A8A' }]}> 
@@ -576,5 +581,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginTop: 16,
     fontWeight: '600',
+  },
+  emptyImage: {
+    width: 160,
+    height: 160,
   },
 });

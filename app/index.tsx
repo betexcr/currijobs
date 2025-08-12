@@ -355,6 +355,7 @@ export default function MapScreen() {
   const loadAllTasks = async (latitude: number, longitude: number) => {
     try {
       setLoading(true);
+      const start = Date.now();
       const all = await fetchTasks();
       const tasksWithDistance = (all || []).map(task => ({
           ...task,
@@ -393,6 +394,10 @@ export default function MapScreen() {
     } catch {
       Alert.alert('Error', 'An unexpected error occurred');
     } finally {
+      const elapsed = Date.now() - start;
+      if (elapsed < 1000) {
+        await new Promise((res) => setTimeout(res, 1000 - elapsed));
+      }
       setLoading(false);
     }
   };

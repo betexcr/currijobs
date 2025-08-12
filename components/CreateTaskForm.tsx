@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { createTask } from '../lib/database';
 import { validateCreateTask } from '../lib/schemas';
 import ChambitoMascot from './ChambitoMascot';
+import { Image } from 'react-native';
 import type { Task } from '../lib/types';
 import { isAmazonAndroid } from '../lib/utils';
 
@@ -49,6 +50,7 @@ export default function CreateTaskForm({ initialCoords = null, initialCategory =
         return;
       }
       setLoading(true);
+      const start = Date.now();
 
       const taskData = {
         title,
@@ -63,6 +65,10 @@ export default function CreateTaskForm({ initialCoords = null, initialCategory =
 
       const validated = validateCreateTask(taskData as any);
       const created = await createTask(validated as any, user.id);
+      const elapsed = Date.now() - start;
+      if (elapsed < 1000) {
+        await new Promise((res) => setTimeout(res, 1000 - elapsed));
+      }
       if (created) {
         Alert.alert('Success', 'Task created successfully!');
         onSuccess?.(created);
@@ -246,6 +252,21 @@ export default function CreateTaskForm({ initialCoords = null, initialCategory =
           </View>
         </View>
       </ScrollView>
+
+      {loading && (
+        <View style={{
+          position: 'absolute',
+          left: 0, right: 0, top: 0, bottom: 0,
+          alignItems: 'center', justifyContent: 'center',
+          backgroundColor: 'rgba(0,0,0,0.15)'
+        }}>
+          <Image
+            source={require('../assets/task-loading.png')}
+            style={{ width: 180, height: 180 }}
+            resizeMode="contain"
+          />
+        </View>
+      )}
 
       <DateTimePickerModal
         isVisible={isPickerVisible}
