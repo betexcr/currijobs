@@ -9,6 +9,7 @@ import {
   ScrollView,
   Dimensions,
   Platform,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { typography, spacing } from '../lib/designSystem';
@@ -810,8 +811,14 @@ export default function MapScreen() {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.loadingContainer}>
-          <ChambitoMascot variant="queen" size="giant" showMessage message={authLoading ? 'Loading...' : 'Finding tasks near you...'} />
-          
+          <Image
+            source={require('../assets/task-loading.png')}
+            style={{ width: 200, height: 200 }}
+            resizeMode="contain"
+          />
+          <Text style={[styles.loadingText, { color: theme.colors.text.primary }]}>
+            {authLoading ? 'Loading...' : 'Loading tasks...'}
+          </Text>
         </View>
       </View>
     );
