@@ -61,6 +61,7 @@ export default function MyTasksScreen() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentRegion, setCurrentRegion] = useState<Region | null>(null);
   const isExpoGoAndroid = Platform.OS === 'android' && (Constants as any)?.appOwnership === 'expo';
+  const isExpoGo = (Constants as any)?.appOwnership === 'expo';
 
   const [myTasks, setMyTasks] = useState<Task[]>([]);
   const openMyTasks = useMemo(() => myTasks.filter(t => t.status === 'open'), [myTasks]);
@@ -247,28 +248,28 @@ export default function MyTasksScreen() {
             <ChambitoMascot variant="queen" size="giant" showMessage message="Cargando..." />
           </View>
         )}
-        {/* Map View */}
-        <MapView
-          ref={mapRef}
-          style={styles.map}
+      {/* Map View */}
+      <MapView
+        ref={mapRef}
+        style={styles.map}
           provider={(isAmazonAndroid() || isExpoGoAndroid) ? undefined : (Platform.OS === 'ios' ? PROVIDER_GOOGLE : undefined)}
           mapType={(isAmazonAndroid() || isExpoGoAndroid) ? 'none' : 'standard'}
           customMapStyle={isAmazonAndroid() ? undefined : (theme.mode === 'dark' ? NIGHT_MAP_STYLE : [])}
-          initialRegion={{
-            latitude: 9.923035,
-            longitude: -84.043457,
-            latitudeDelta: 0.1,
-            longitudeDelta: 0.1,
-          }}
-          onLongPress={handleMapLongPress}
-          onPress={() => {
-            if (isExpanded) {
-              setIsExpanded(false);
-              setExpandedPositions({});
-            }
-          }}
-          onRegionChangeComplete={(region) => setCurrentRegion(region)}
-        >
+        initialRegion={{
+          latitude: 9.923035,
+          longitude: -84.043457,
+          latitudeDelta: 0.1,
+          longitudeDelta: 0.1,
+        }}
+        onLongPress={handleMapLongPress}
+        onPress={() => {
+          if (isExpanded) {
+            setIsExpanded(false);
+            setExpandedPositions({});
+          }
+        }}
+        onRegionChangeComplete={(region) => setCurrentRegion(region)}
+      >
           {(isAmazonAndroid() || isExpoGoAndroid) && (
             <UrlTile
               urlTemplate={theme.mode === 'dark' ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
@@ -276,22 +277,22 @@ export default function MyTasksScreen() {
               tileSize={256}
             />
           )}
-           {openMyTasks.map((task) => (
-            <Marker
-              key={task.id}
-              coordinate={{
-                latitude: isExpanded && expandedPositions[task.id]?.latitude != null ? expandedPositions[task.id].latitude : (task.latitude || 0),
-                longitude: isExpanded && expandedPositions[task.id]?.longitude != null ? expandedPositions[task.id].longitude : (task.longitude || 0),
-              }}
-               onPress={() => handleMarkerPressWithExpand(task)}
-            >
-              <View style={[styles.customMarker, { backgroundColor: getCategoryColor(task.category) }]}>
-                <Text style={styles.markerEmoji}>{getCategoryIcon(task.category)}</Text>
-              </View>
+        {openMyTasks.map((task) => (
+          <Marker
+            key={task.id}
+            coordinate={{
+              latitude: isExpanded && expandedPositions[task.id]?.latitude != null ? expandedPositions[task.id].latitude : (task.latitude || 0),
+              longitude: isExpanded && expandedPositions[task.id]?.longitude != null ? expandedPositions[task.id].longitude : (task.longitude || 0),
+            }}
+            onPress={() => handleMarkerPressWithExpand(task)}
+          >
+            <View style={[styles.customMarker, { backgroundColor: getCategoryColor(task.category) }]}>
+              <Text style={styles.markerEmoji}>{getCategoryIcon(task.category)}</Text>
+            </View>
               {/* Remove native callout to mirror map view overlay-only behavior */}
-            </Marker>
-          ))}
-        </MapView>
+          </Marker>
+        ))}
+      </MapView>
 
         {/* Category Filter Bar removed per revert */}
 
@@ -402,15 +403,15 @@ export default function MyTasksScreen() {
         )}
 
         {/* Open Task List */}
-        <View style={[styles.taskList, { backgroundColor: theme.colors.surface }]}> 
+      <View style={[styles.taskList, { backgroundColor: theme.colors.surface }]}>
           <TouchableOpacity onPress={() => setShowOpenList(v => !v)}>
-              <Text style={[styles.taskListTitle, { color: theme.colors.text.primary }]}> 
+        <Text style={[styles.taskListTitle, { color: theme.colors.text.primary }]}>
                 {t('myTasks')} ({openMyTasks.length}) {showOpenList ? '▾' : '▸'}
-            </Text>
+        </Text>
           </TouchableOpacity>
           {showOpenList && (
           <View>
-            {openMyTasks.map((task) => (
+          {openMyTasks.map((task) => (
             <TouchableOpacity
               key={task.id}
               style={[styles.taskItem, { backgroundColor: theme.colors.background }]}
@@ -477,12 +478,12 @@ export default function MyTasksScreen() {
                 <Text style={[styles.taskLocation, { color: theme.colors.text.secondary }]}>
                   📍 {task.location}
                 </Text>
-                 <Text style={[styles.taskStatus, { color: theme.colors.text.secondary }]}>
+                <Text style={[styles.taskStatus, { color: theme.colors.text.secondary }]}>
                    {task.status === 'open' && (t('openStatus') || 'Open')}
                    {task.status === 'in_progress' && (t('inProgressStatus') || 'In Progress')}
                    {task.status === 'completed' && (t('completedStatus') || 'Completed')}
                    {task.status === 'cancelled' && (t('cancelledStatus') || 'Cancelled')}
-                 </Text>
+                </Text>
               </View>
                 {/* Finish task (owner) */}
                 {task.status === 'in_progress' && (task as any).assigned_to && (task as any).user_id === user?.id && (
@@ -497,12 +498,12 @@ export default function MyTasksScreen() {
                      <Text style={{ color: 'white', fontWeight: '700' }}>{t('finishTask') || 'Finish Task'}</Text>
                   </TouchableOpacity>
                 )}
-              </TouchableOpacity>
-            ))}
+            </TouchableOpacity>
+          ))}
           </View>
           )}
         </View>
-      </ScrollView>
+        </ScrollView>
 
       {/* Create Task Modal */}
       <Modal
@@ -517,15 +518,15 @@ export default function MyTasksScreen() {
               {t('createNewTask')}
             </Text>
             <View style={{ flex: 1 }}>
-              <CreateTaskForm
-                initialCoords={newTaskLocation}
-                onCancel={() => setShowCreateModal(false)}
-                onSuccess={() => {
-                  setShowCreateModal(false);
-                  setNewTaskLocation(null);
-                  fetchMyTasks();
-                }}
-              />
+            <CreateTaskForm
+              initialCoords={newTaskLocation}
+              onCancel={() => setShowCreateModal(false)}
+              onSuccess={() => {
+                setShowCreateModal(false);
+                setNewTaskLocation(null);
+                fetchMyTasks();
+              }}
+            />
             </View>
           </View>
         </View>

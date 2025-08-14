@@ -42,6 +42,15 @@ export const db = new PostgrestClient(postgrestBase, {
   fetch,
 });
 
+// Expose remote REST info for direct fetch fallbacks
+export const getSupabaseRestInfo = () => {
+  return {
+    baseUrl: `${supabaseUrl}/rest/v1`,
+    headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}` },
+    anonKey: supabaseAnonKey,
+  } as const;
+};
+
 // Helper function to get auth headers with better error handling
 export const getAuthHeaders = async () => {
   try {

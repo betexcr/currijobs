@@ -50,25 +50,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // - iPhone (non-iPad, including simulator) -> user2
           // - iPad -> user3
           const isPad = (Platform as any).isPad === true;
-          let desiredId = isPad ? '00000000-0000-0000-0000-000000000003' : '00000000-0000-0000-0000-000000000002';
-          let desiredEmail = isPad ? 'user3@currijobs.com' : 'user2@currijobs.com';
+          const desiredId = isPad ? '00000000-0000-0000-0000-000000000003' : '00000000-0000-0000-0000-000000000002';
+          const desiredEmail = isPad ? 'user3@currijobs.com' : 'user2@currijobs.com';
           const seededUser = { id: desiredId, email: desiredEmail, created_at: new Date().toISOString() } as User;
-          const profile = await fetchUserProfile(seededUser.id);
-          setUser({ ...seededUser, ...profile });
-          const token = await registerForPushNotificationsAsync();
-          if (token) await saveExpoPushToken(seededUser.id, token);
+          // Set immediately so UI can proceed, fetch profile best-effort in background
+          setUser(seededUser);
           setSession(null);
           setLoading(false);
+          // Background enrich (non-blocking)
+          (async () => {
+            try {
+              const profile = await fetchUserProfile(seededUser.id);
+              setUser(prev => ({ ...(prev || seededUser), ...(profile || {}) } as any));
+              const token = await registerForPushNotificationsAsync();
+              if (token) await saveExpoPushToken(seededUser.id, token);
+            } catch {}
+          })();
           return;
         } else if (Platform.OS === 'android') {
           // Android devices -> user4
           const seededUser = { id: '00000000-0000-0000-0000-000000000004', email: 'user4@currijobs.com', created_at: new Date().toISOString() } as User;
-          const profile = await fetchUserProfile(seededUser.id);
-          setUser({ ...seededUser, ...profile });
-          const token = await registerForPushNotificationsAsync();
-          if (token) await saveExpoPushToken(seededUser.id, token);
+          // Set immediately; enrich later
+          setUser(seededUser);
           setSession(null);
           setLoading(false);
+          (async () => {
+            try {
+              const profile = await fetchUserProfile(seededUser.id);
+              setUser(prev => ({ ...(prev || seededUser), ...(profile || {}) } as any));
+              const token = await registerForPushNotificationsAsync();
+              if (token) await saveExpoPushToken(seededUser.id, token);
+            } catch {}
+          })();
           return;
         }
 

@@ -144,6 +144,18 @@ export default function MapScreen() {
 
   const supabaseEnabled = useSupabase();
   const isExpoGoAndroid = Platform.OS === 'android' && (Constants as any)?.appOwnership === 'expo';
+  const isExpoGo = (Constants as any)?.appOwnership === 'expo';
+
+  // Diagnostics: track loading states and user hydration
+  useEffect(() => {
+    try {
+      (globalThis as any).console?.log?.('MapScreen state', {
+        authLoading,
+        loading,
+        hasUser: !!user,
+      });
+    } catch {}
+  }, [authLoading, loading, user]);
   useEffect(() => {
     if (authLoading) return; // Wait for auth to load
     if (supabaseEnabled) {
@@ -162,6 +174,7 @@ export default function MapScreen() {
 
   const getCurrentLocation = async () => {
     try {
+      (globalThis as any).console?.log?.('getCurrentLocation: start');
       // Best-effort local seed on Android if needed (empty DB/local store)
       if (Platform.OS === 'android') {
         await seedLocalTasksIfNeeded();
@@ -188,6 +201,7 @@ export default function MapScreen() {
 
       // Request location permissions for other users
       const { status } = await Location.requestForegroundPermissionsAsync();
+      (globalThis as any).console?.log?.('getCurrentLocation: permission status', status);
       
       if (status !== 'granted') {
         Alert.alert(
@@ -213,6 +227,7 @@ export default function MapScreen() {
         timeInterval: 5000,
         distanceInterval: 10,
       });
+      (globalThis as any).console?.log?.('getCurrentLocation: got position');
 
       setUserLocation(location);
       await loadAllTasks(location.coords.latitude, location.coords.longitude);
@@ -227,6 +242,7 @@ export default function MapScreen() {
         });
       }
     } catch {
+      (globalThis as any).console?.warn?.('getCurrentLocation: falling back to default location');
       Alert.alert('Location Error', 'Could not get your location. Using default location.');
       
       // Use default location
@@ -236,6 +252,7 @@ export default function MapScreen() {
       } as Location.LocationObject);
       await loadAllTasks(GBSYS_COSTA_RICA.latitude, GBSYS_COSTA_RICA.longitude);
     } finally {
+      (globalThis as any).console?.log?.('getCurrentLocation: done, clearing loading');
       setLoading(false);
     }
   };
@@ -354,9 +371,9 @@ export default function MapScreen() {
   };
 
   const loadAllTasks = async (latitude: number, longitude: number) => {
+    const start = Date.now();
     try {
       setLoading(true);
-      const start = Date.now();
       const all = await fetchTasks();
       const tasksWithDistance = (all || []).map(task => ({
           ...task,
@@ -828,7 +845,11 @@ export default function MapScreen() {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}> 
         <View style={styles.loadingContainer}> 
-          <ChambitoMascot mood="error" size="large" />
+          <Image
+            source={require('../assets/task-not-found.png')}
+            style={{ width: 160, height: 160 }}
+            resizeMode="contain"
+          />
           <Text style={[styles.loadingText, { color: theme.colors.text.primary }]}>No nearby tasks found</Text>
           <Text style={{ marginTop: 8, color: theme.colors.text.secondary }}>Try widening distance, clearing search, or selecting more categories.</Text>
         </View>
@@ -872,19 +893,6 @@ export default function MapScreen() {
               ]}
             >
               <Text style={styles.listButtonText}>🔄 Refresh</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push('/create-task')}
-              style={[
-                styles.createButton,
-                {
-                  backgroundColor: theme.mode === 'light' ? '#FF6B35' : '#1E3A8A',
-                  borderWidth: 1,
-                  borderColor: theme.mode === 'light' ? '#FF6B35' : '#3B82F6',
-                },
-              ]}
-            >
-              <Text style={[styles.createButtonText, { color: 'white' }]}>+ {t('createTask')}</Text>
             </TouchableOpacity>
           </View>
       </View>
@@ -1058,7 +1066,7 @@ export default function MapScreen() {
           <MapView
           ref={mapRef}
           style={styles.map}
-            provider={(isAmazonAndroid() || isExpoGoAndroid) ? undefined : (Platform.OS === 'ios' ? PROVIDER_GOOGLE : undefined)}
+          provider={(isAmazonAndroid() || isExpoGo) ? undefined : (Platform.OS === 'ios' ? PROVIDER_GOOGLE : undefined)}
             mapType={(isAmazonAndroid() || isExpoGoAndroid) ? 'none' : 'standard'}
             customMapStyle={isAmazonAndroid() ? undefined : (theme.mode === 'dark' ? NIGHT_MAP_STYLE : [])}
           initialRegion={{

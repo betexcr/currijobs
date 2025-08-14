@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, UrlTile } from 'react-native-maps';
 import Constants from 'expo-constants';
@@ -20,7 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { createTask } from '../lib/database';
 import { validateCreateTask } from '../lib/schemas';
-import ChambitoMascot from '../components/ChambitoMascot';
+// import ChambitoMascot from '../components/ChambitoMascot';
 import { isAmazonAndroid } from '../lib/utils';
 
 
@@ -142,7 +143,11 @@ export default function CreateTaskScreen() {
       >
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
-          <ChambitoMascot mood="working" size="medium" />
+          <Image
+            source={require('../assets/create-new-task.png')}
+            style={styles.createImage}
+            resizeMode="contain"
+          />
           <Text style={styles.welcomeTitle}>Create a New Task</Text>
           <Text style={styles.welcomeSubtitle}>Help others and earn money</Text>
         </View>
@@ -391,6 +396,10 @@ const styles = StyleSheet.create({
   welcomeSection: {
     alignItems: 'center',
     marginBottom: 30,
+  },
+  createImage: {
+    width: 160,
+    height: 160,
   },
   welcomeTitle: {
     fontSize: 24,

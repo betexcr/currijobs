@@ -1,4 +1,4 @@
-import { db, auth, getAuthHeaders } from './supabase-lightweight';
+import { db, auth, getAuthHeaders, getSupabaseRestInfo } from './supabase-lightweight';
 import { sendPushNotification } from './notifications';
 import { Task, CreateTaskData, Offer, CreateOfferData } from './types';
 import { 
@@ -12,6 +12,8 @@ import {
   safeValidateOffer
 } from './schemas';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { isDemoMode, useMockData, isFeatureEnabled, useSupabase } from './feature-flags';
 
 // Mock data for offline development (dense around demo user at La Nopalera)
@@ -220,24 +222,109 @@ export const fetchTasks = async (): Promise<Task[]> => {
 
   try {
     console.log('Attempting to fetch tasks from Supabase...');
-    const { data, error } = await db
-      .from('tasks')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const startFetch = Date.now();
+    const isExpoGo = ((Constants as any)?.appOwnership === 'expo');
+    const isIOS = Platform.OS === 'ios';
+    
+    // Expo Go on iOS sometimes stalls with postgrest-js; use direct REST
+    const queryPromise = (isExpoGo && isIOS)
+      ? (async () => {
+          // Ensure direct REST cannot hang forever in Expo Go on iOS
+          const DIRECT_TIMEOUT_MS = 10000;
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => {
+            try { controller.abort('timeout'); } catch {}
+          }, DIRECT_TIMEOUT_MS);
+          try {
+            const { baseUrl, headers, anonKey } = getSupabaseRestInfo();
+            // Provide apikey both in header and as query param for maximum compatibility in Expo Go
+            const url = `${baseUrl}/tasks?select=*&order=created_at.desc&apikey=${encodeURIComponent(anonKey)}`;
+            (globalThis as any).console?.log?.('[fetchTasks] iOS Expo Go direct REST →', url.replace(anonKey, '***'));
+            const resp = await fetch(url, { headers: headers as any, signal: (controller as any).signal });
+            (globalThis as any).console?.log?.('[fetchTasks] REST status', resp.status);
+            if (!resp.ok) return { data: null, error: { message: `HTTP ${resp.status}` } };
+            const json = await resp.json();
+            (globalThis as any).console?.log?.('[fetchTasks] REST rows', Array.isArray(json) ? json.length : typeof json);
+            return { data: json, error: null };
+          } catch (e: any) {
+            const msg = e?.name === 'AbortError' ? `timeout after ${DIRECT_TIMEOUT_MS}ms` : (e?.message || 'direct fetch failed');
+            (globalThis as any).console?.error?.('[fetchTasks] REST exception', msg);
+            return { data: null, error: { message: msg } };
+          } finally {
+            clearTimeout(timeoutId);
+          }
+        })()
+      : (db
+          .from('tasks')
+          .select('*')
+          .order('created_at', { ascending: false }) as unknown as Promise<any>);
+
+    // If using direct REST on iOS Expo Go, we already applied an internal timeout
+    const usingDirectREST = (isExpoGo && isIOS);
+    const TIMEOUT_MS = 10000;
+    let timedOut = false;
+    const timeoutPromise = new Promise((resolve) =>
+      setTimeout(() => {
+        timedOut = true;
+        resolve({ data: null, error: { message: 'fetchTasks timeout after ' + TIMEOUT_MS + 'ms' } });
+      }, TIMEOUT_MS)
+    );
+
+    let result: any = usingDirectREST ? await queryPromise : await Promise.race([queryPromise, timeoutPromise]);
+    // If timed out, try alternate strategies
+    if (result?.error && String(result.error.message || '').includes('timeout')) {
+      // 1) Try direct REST again without apikey query param (already attempted above), then
+      try {
+        const { baseUrl, headers } = getSupabaseRestInfo();
+        const resp = await fetch(`${baseUrl}/tasks?select=*&order=created_at.desc`, { headers: headers as any });
+        if (resp.ok) {
+          const json = await resp.json();
+          result = { data: json, error: null };
+        }
+      } catch {}
+      // 2) If still failing, try postgrest-js client even on iOS Expo Go
+      if (!result?.data) {
+        try {
+          const pg = (await db
+            .from('tasks')
+            .select('*')
+            .order('created_at', { ascending: false })) as any;
+          if (!pg.error) {
+            result = { data: pg.data, error: null };
+          }
+        } catch {}
+      }
+    }
+    const data = result?.data ?? null;
+    const error = result?.error ?? null;
 
     if (error) {
-      console.error('Supabase error details:', { message: error.message, details: error.details, hint: error.hint, code: error.code });
+      console.error('Supabase error details:', { message: error.message, details: error.details, hint: error.hint, code: error.code, timedOut });
+      // Only fallback to demo when Supabase is not in use; otherwise return empty
+      if (!useSupabase() || isDemoMode()) {
+        try {
+          const created = await loadDemoTasks();
+          const fallback = [...created, ...MOCK_TASKS] as Task[];
+          console.warn('[fallback] Returning local/demo tasks:', fallback.length);
+          return fallback;
+        } catch {
+          return [];
+        }
+      }
       return [];
     }
 
-    console.log('Successfully fetched tasks:', data?.length || 0);
+    console.log('Successfully fetched tasks:', data?.length || 0, 'in', (Date.now() - startFetch) + 'ms');
     const createdLocal = await loadDemoTasks();
-    // Merge local created tasks so creation works without Supabase too
-    const merged = [
+    // When using Supabase, DO NOT merge local demo tasks
+    if (useSupabase()) {
+      return (data || []) as Task[];
+    }
+    // Otherwise, merge local created tasks so creation works without backend
+    return [
       ...((data || []) as Task[]),
       ...createdLocal,
     ];
-    return merged;
   } catch (error: any) {
     console.error('Exception during fetchTasks:', {
       name: error?.name,
