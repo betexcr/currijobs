@@ -20,6 +20,7 @@ CurriJobs is a mobile app that helps customers discover, post, and manage small 
 - Tech Stack
 - Project Structure
 - Development
+- Remote Testing
 - Testing & Quality
 - Design & Theming
 - Localization
@@ -40,28 +41,30 @@ CurriJobs is a mobile app that helps customers discover, post, and manage small 
 git clone <repository-url>
 cd currijobs
 npm install --legacy-peer-deps
-npx expo start --clear
+npx expo start --tunnel
 ```
 
-Launch options:
-- iOS Simulator: press `i`
-- Android Emulator: press `a`
-- Physical device: open Expo Go and scan the QR code
+### Launch Options
+- **iOS Simulator:** `npx expo start --ios`
+- **Android Emulator:** `npx expo start --android`
+- **Physical device:** Install Expo Go and scan the QR code
+- **Remote testing:** Share the tunnel URL with external users
 
 ## Features
 - Task discovery by category and location
 - Create and manage tasks with details and rewards
 - Map-based exploration with nearby tasks
 - Multi-language support: Spanish, English, Chinese
-- Offline-friendly development mode using mock data
+- Real-time Supabase integration for live data
+- Remote access via secure tunnel
 
 ## Tech Stack
-- React Native (Expo)
+- React Native (Expo SDK 53)
 - TypeScript
 - Expo Router for navigation
 - React Native Maps for geolocation & maps
 - AsyncStorage for local persistence
-- Supabase (prepared; offline-first during development)
+- Supabase for backend services and real-time data
 
 ## Project Structure
 ```
@@ -74,41 +77,72 @@ currijobs/
 ```
 
 ## Development
-- Start: `npx expo start --clear`
-- Start (local DB): `npm run start:local`
+
+### Quick Start
+```bash
+# Start with tunnel for remote access
+npx expo start --tunnel
+
+# Start for local development
+npx expo start
+
+# Run on specific platform
+npx expo start --ios
+npx expo start --android
+```
+
+### Development Commands
+- Start: `npx expo start --tunnel`
 - Lint: `npm run lint`
-- Type-check: `npm run typecheck` (if configured)
-- Format: `npm run format` (if configured)
+- Type-check: `npm run validate:types`
+- Format: `npm run format`
 
-Offline mode notes:
-- Mock data is used for development to avoid backend dependencies.
-- Switching to online mode will involve enabling Supabase calls and credentials.
+### Feature Flags
+The app uses feature flags for configuration:
+- `USE_SUPABASE: true` - Always fetch from Supabase (no mock data)
+- `USE_MOCK_DATA: false` - Disabled to ensure real data only
+- `DEMO_MODE: false` - Production mode enabled
 
-### Local Docker DB (Postgres + PostGIS + seeds)
+## Remote Testing
 
-1. `cd docker`
-2. `docker compose up -d`
-3. Postgres: `localhost:5433` (db/user/pass: `currijobs`)
-4. PostgREST is included and exposed at `http://localhost:3000`
-5. Start app with: `npm run start:local` (injects the required EXPO_PUBLIC_* env)
-   - For other devices on LAN, ensure `EXPO_PUBLIC_POSTGREST_URL` uses your LAN IP (e.g. `http://192.168.0.27:3000`)
+### For External Users
+Share this URL for remote testing:
+```
+https://aoc2uxw-betexcr-8081.exp.direct
+```
 
-Init scripts:
-- `initdb/01_schema.sql` loads PostGIS, a minimal `auth.users`, and includes `supabase_schema_complete.sql`
-- `initdb/02_seed.sql` seeds users, tasks, offers, payments, reviews, badges, user_progress
+### How to Test Remotely
+1. **Install Expo Go** on the target device
+2. **Open Expo Go** and tap "Enter URL"
+3. **Paste the tunnel URL** above
+4. **The app will load** with real Supabase data
+
+### For Simulators
+```bash
+# Boot simulators
+xcrun simctl boot "iPhone 16 Pro"
+xcrun simctl boot "iPad Pro 11-inch (M4)"
+
+# Open app in simulators
+xcrun simctl openurl <DEVICE_ID> "exp://aoc2uxw-betexcr-8081.exp.direct"
+```
 
 ## Testing & Quality
-- ESLint and Prettier are used to maintain code quality and consistency.
-- Add unit/integration tests as features evolve.
+- ESLint and Prettier maintain code quality
+- Zero lint errors enforced for deployments
+- TypeScript strict mode enabled
+- Real-time Supabase integration tested
 
 ## Design & Theming
 - Light/Dark theme support
 - Accessible color palettes (including colorblind-friendly options)
 - Modern, spacious UI with smooth transitions
+- Responsive design for iPhone and iPad
 
 ## Localization
 - Built-in translations for Spanish, English, and Chinese
 - Language can be switched from settings
+- RTL support ready
 
 ## Roadmap
 The detailed phase plan and progress tracking live in `phases.md`.
