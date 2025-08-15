@@ -20,6 +20,9 @@
       "bundleIdentifier": "com.currijobs.app",
       "config": {
         "googleMapsApiKey": "AIzaSyCgZgC5arI2qEbflITc-JiHCR4e2zqhFUM"
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -37,7 +40,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-      "plugins": [
+    "plugins": [
       "expo-router",
       [
         "expo-build-properties",
