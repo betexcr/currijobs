@@ -40,14 +40,6 @@
       "plugins": [
       "expo-router",
       [
-        "expo-notifications",
-        {
-          "icon": "./assets/icon.png",
-          "color": "#1E3A8A",
-          "mode": "production"
-        }
-      ],
-      [
         "expo-build-properties",
         {
           "android": {

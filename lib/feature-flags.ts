@@ -42,7 +42,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   // Demo Mode - Disabled to use real local Postgres by default
   DEMO_MODE: false,
   
-  // Database - Use Supabase by default (no demo data)
+  // Database - Use Supabase by default (always fetch from Supabase)
   USE_SUPABASE: true,
   USE_MOCK_DATA: false,
   

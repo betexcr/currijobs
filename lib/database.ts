@@ -22,7 +22,7 @@ const DEMO_LON = -84.043457;
 const nearby = (dLat: number, dLon: number) => ({ latitude: DEMO_LAT + dLat, longitude: DEMO_LON + dLon });
 
 // Deterministic jitter to spread demo tasks by ~20–70 meters
-function jitterDemoLatLon(id: string, baseLat?: number, baseLon?: number): { latitude?: number; longitude?: number } {
+function jitterDemoLatLon(id: string, baseLat?: number,                                                                                                                                                                                      baseLon?: number): { latitude?: number; longitude?: number } {
   if (!baseLat || !baseLon) return { latitude: baseLat, longitude: baseLon };
   // Simple hash from id
   let h = 0;
