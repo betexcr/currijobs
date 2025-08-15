@@ -7,7 +7,6 @@ interface FeatureFlags {
   
   // Database
   USE_SUPABASE: boolean;
-  USE_MOCK_DATA: boolean;
   
   // Features
   ENABLE_USER_RATINGS: boolean;
@@ -44,7 +43,6 @@ const DEFAULT_FLAGS: FeatureFlags = {
   
   // Database - Use Supabase by default (always fetch from Supabase)
   USE_SUPABASE: true,
-  USE_MOCK_DATA: false,
   
   // Features - All enabled by default
   ENABLE_USER_RATINGS: true,
@@ -92,7 +90,6 @@ export const FEATURE_FLAGS: FeatureFlags = {
   
   // Database
   USE_SUPABASE: parseEnvFlag('USE_SUPABASE', DEFAULT_FLAGS.USE_SUPABASE),
-  USE_MOCK_DATA: parseEnvFlag('USE_MOCK_DATA', DEFAULT_FLAGS.USE_MOCK_DATA),
   
   // Features
   ENABLE_USER_RATINGS: parseEnvFlag('ENABLE_USER_RATINGS', DEFAULT_FLAGS.ENABLE_USER_RATINGS),
@@ -129,7 +126,7 @@ export const setDemoModeOverride = (value: boolean) => {
 };
 export const isDemoMode = (): boolean => (DEMO_MODE_OVERRIDE !== null ? !!DEMO_MODE_OVERRIDE : FEATURE_FLAGS.DEMO_MODE);
 export const isProductionMode = (): boolean => !FEATURE_FLAGS.DEMO_MODE;
-export const useMockData = (): boolean => FEATURE_FLAGS.USE_MOCK_DATA || FEATURE_FLAGS.DEMO_MODE;
+export const useMockData = (): boolean => false; // ALWAYS FALSE - WE ARE ONLINE ONLY! 🚀
 export const useSupabase = (): boolean => FEATURE_FLAGS.USE_SUPABASE && !FEATURE_FLAGS.DEMO_MODE;
 
 // Feature check functions
@@ -142,7 +139,6 @@ if (FEATURE_FLAGS.ENABLE_LOGGING) {
   console.log('🚩 Feature Flags Configuration:', {
     DEMO_MODE: FEATURE_FLAGS.DEMO_MODE,
     USE_SUPABASE: FEATURE_FLAGS.USE_SUPABASE,
-    USE_MOCK_DATA: FEATURE_FLAGS.USE_MOCK_DATA,
     ENABLE_USER_RATINGS: FEATURE_FLAGS.ENABLE_USER_RATINGS,
     ENABLE_WALLET: FEATURE_FLAGS.ENABLE_WALLET,
   });

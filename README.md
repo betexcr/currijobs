@@ -99,9 +99,9 @@ npx expo start --android
 
 ### Feature Flags
 The app uses feature flags for configuration:
-- `USE_SUPABASE: true` - Always fetch from Supabase (no mock data)
-- `USE_MOCK_DATA: false` - Disabled to ensure real data only
+- `USE_SUPABASE: true` - Always fetch from Supabase (production ready)
 - `DEMO_MODE: false` - Production mode enabled
+- **NO MOCK DATA** - App only uses real Supabase data! 🚀
 
 ## Remote Testing
 

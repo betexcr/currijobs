@@ -14,130 +14,13 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import { isDemoMode, useMockData, isFeatureEnabled, useSupabase } from './feature-flags';
+import { isDemoMode, isFeatureEnabled, useSupabase } from './feature-flags';
 
-// Mock data for offline development (dense around demo user at La Nopalera)
-const DEMO_LAT = 9.923035;
-const DEMO_LON = -84.043457;
-const nearby = (dLat: number, dLon: number) => ({ latitude: DEMO_LAT + dLat, longitude: DEMO_LON + dLon });
+// Production-ready Supabase integration - NO MOCK DATA! 🚀
 
-// Deterministic jitter to spread demo tasks by ~20–70 meters
-function jitterDemoLatLon(id: string, baseLat?: number,                                                                                                                                                                                      baseLon?: number): { latitude?: number; longitude?: number } {
-  if (!baseLat || !baseLon) return { latitude: baseLat, longitude: baseLon };
-  // Simple hash from id
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  // Leave some tasks bundled to test grid behavior (about 40%)
-  const keepBundled = (h % 10) < 4;
-  if (keepBundled) {
-    return { latitude: baseLat, longitude: baseLon };
-  }
-  const meters = 20 + (h % 50); // 20..70m
-  const angle = (h % 360) * (Math.PI / 180);
-  const dLat = (meters / 111000) * Math.cos(angle);
-  const dLon = (meters / (111000 * Math.cos(baseLat * Math.PI / 180))) * Math.sin(angle);
-  return { latitude: baseLat + dLat, longitude: baseLon + dLon };
-}
+// Production-ready Supabase integration - NO MOCK DATA! 🚀
 
-const MOCK_TASKS: Task[] = [
-  // cleaning
-  { id: 'clean-1', title: 'Apartment Cleaning - quick', description: 'Small 1-bed clean', category: 'cleaning', reward: 12000, time_estimate: '2h', location: 'La Nopalera, San José', ...nearby(0.003, 0.002), user_id: 'user1', created_at: new Date().toISOString(), status: 'open', priority: 'low', is_urgent: false },
-  { id: 'clean-2', title: 'Deep Clean Requested', description: 'Deep clean 3-bed', category: 'cleaning', reward: 30000, time_estimate: '4h', location: 'Avenida 24, San José', ...nearby(0.001, -0.002), user_id: 'user2', created_at: new Date().toISOString(), status: 'open', priority: 'medium', is_urgent: false },
-  // pet care
-  { id: 'pet-1', title: 'Dog Walking - morning', description: 'Golden retriever', category: 'pet_care', reward: 8000, time_estimate: '1h', location: 'Barrio La Nopalera', ...nearby(-0.001, 0.0015), user_id: 'user3', created_at: new Date().toISOString(), status: 'open', priority: 'low', is_urgent: false },
-  { id: 'pet-2', title: 'Cat Sitting Overnight', description: 'Friendly cat', category: 'pet_care', reward: 20000, time_estimate: 'overnight', location: 'San José Centro', ...nearby(0.002, 0.0005), user_id: 'user4', created_at: new Date().toISOString(), status: 'open', priority: 'medium', is_urgent: false },
-  // plumbing
-  { id: 'plumb-1', title: 'Fix Leaky Faucet', description: 'Kitchen faucet leaking', category: 'plumbing', reward: 18000, time_estimate: '1h', location: 'La Nopalera', ...nearby(0.0006, -0.0008), user_id: 'user5', created_at: new Date().toISOString(), status: 'open', priority: 'high', is_urgent: true },
-  // electrician
-  { id: 'elec-1', title: 'Install Light Fixture', description: 'Ceiling light', category: 'electrician', reward: 22000, time_estimate: '1.5h', location: 'Avenida 24', ...nearby(-0.0012, -0.0003), user_id: 'user6', created_at: new Date().toISOString(), status: 'open', priority: 'medium', is_urgent: false },
-  // carpentry
-  { id: 'carp-1', title: 'Assemble Shelves', description: 'IKEA style shelves', category: 'carpentry', reward: 15000, time_estimate: '2h', location: 'San José', ...nearby(0.0008, 0.0012), user_id: 'user7', created_at: new Date().toISOString(), status: 'open', priority: 'low', is_urgent: false },
-  // painting
-  { id: 'paint-1', title: 'Paint Bedroom', description: '1 wall', category: 'painting', reward: 20000, time_estimate: '3h', location: 'La Nopalera', ...nearby(-0.001, -0.001), user_id: 'user8', created_at: new Date().toISOString(), status: 'open', priority: 'medium', is_urgent: false },
-  // appliance repair
-  { id: 'appl-1', title: 'Fix Washing Machine', description: 'Not draining', category: 'appliance_repair', reward: 35000, time_estimate: '2h', location: 'San José Centro', ...nearby(0.0015, 0.002), user_id: 'user9', created_at: new Date().toISOString(), status: 'open', priority: 'high', is_urgent: true },
-  // laundry/ironing
-  { id: 'laundry-1', title: 'Iron Shirts', description: '10 shirts', category: 'laundry_ironing', reward: 8000, time_estimate: '1h', location: 'Avenida 24', ...nearby(0.0005, 0.0007), user_id: 'user10', created_at: new Date().toISOString(), status: 'open', priority: 'low', is_urgent: false },
-  // cooking
-  { id: 'cook-1', title: 'Meal Prep', description: '2 meals', category: 'cooking', reward: 12000, time_estimate: '2h', location: 'La Nopalera', ...nearby(-0.0007, 0.0011), user_id: 'user11', created_at: new Date().toISOString(), status: 'open', priority: 'low', is_urgent: false },
-  // grocery shopping
-  { id: 'grocery-1', title: 'Grocery Pickup', description: 'Local market', category: 'grocery_shopping', reward: 6000, time_estimate: '1h', location: 'San José', ...nearby(0.0009, -0.0009), user_id: 'user12', created_at: new Date().toISOString(), status: 'open', priority: 'low', is_urgent: false },
-  { id: 'grocery-2', title: 'Supermarket Run', description: 'Bulk items', category: 'grocery_shopping', reward: 10000, time_estimate: '1.5h', location: 'San José', ...nearby(-0.0015, 0.0004), user_id: 'user13', created_at: new Date().toISOString(), status: 'open', priority: 'medium', is_urgent: false },
-  // gardening
-  { id: 'garden-1', title: 'Trim Hedge', description: 'Small hedge', category: 'gardening', reward: 9000, time_estimate: '1.5h', location: 'La Nopalera', ...nearby(0.0011, -0.0013), user_id: 'user14', created_at: new Date().toISOString(), status: 'open', priority: 'low', is_urgent: false },
-  // moving help
-  { id: 'move-1', title: 'Carry Boxes', description: '3rd floor walk-up', category: 'moving_help', reward: 18000, time_estimate: '2h', location: 'Avenida 24', ...nearby(-0.0009, 0.0013), user_id: 'user15', created_at: new Date().toISOString(), status: 'open', priority: 'medium', is_urgent: false },
-  { id: 'move-2', title: 'Small Move', description: 'Studio apt', category: 'moving_help', reward: 30000, time_estimate: '3h', location: 'San José', ...nearby(0.0018, -0.0006), user_id: 'user16', created_at: new Date().toISOString(), status: 'open', priority: 'high', is_urgent: true },
-  // trash removal
-  { id: 'trash-1', title: 'Junk Pickup', description: 'Old furniture', category: 'trash_removal', reward: 20000, time_estimate: '2h', location: 'La Nopalera', ...nearby(-0.0014, -0.0007), user_id: 'user17', created_at: new Date().toISOString(), status: 'open', priority: 'medium', is_urgent: false },
-  // window washing
-  { id: 'window-1', title: 'Clean Windows', description: '2 bedroom apt', category: 'window_washing', reward: 14000, time_estimate: '2h', location: 'Avenida 24', ...nearby(0.0003, -0.0011), user_id: 'user18', created_at: new Date().toISOString(), status: 'open', priority: 'low', is_urgent: false },
-  // babysitting
-  { id: 'baby-1', title: 'Evening Babysitting', description: '2 kids', category: 'babysitting', reward: 25000, time_estimate: '4h', location: 'San José', ...nearby(0.0012, 0.0002), user_id: 'user19', created_at: new Date().toISOString(), status: 'open', priority: 'medium', is_urgent: false },
-  // elderly care
-  { id: 'elder-1', title: 'Elderly Companion', description: 'Read and chat', category: 'elderly_care', reward: 15000, time_estimate: '2h', location: 'La Nopalera', ...nearby(-0.001, 0.001), user_id: 'user20', created_at: new Date().toISOString(), status: 'open', priority: 'low', is_urgent: false },
-  // tutoring
-  { id: 'tutor-1', title: 'Math Tutor', description: 'Algebra help', category: 'tutoring', reward: 12000, time_estimate: '1.5h', location: 'San José', ...nearby(0.0006, -0.0004), user_id: 'user21', created_at: new Date().toISOString(), status: 'open', priority: 'low', is_urgent: false },
-  { id: 'tutor-2', title: 'English Tutor', description: 'Conversational English', category: 'tutoring', reward: 15000, time_estimate: '2h', location: 'Avenida 24', ...nearby(-0.0008, -0.0002), user_id: 'user22', created_at: new Date().toISOString(), status: 'open', priority: 'medium', is_urgent: false },
-  // delivery/errands
-  { id: 'deliv-1', title: 'Parcel Delivery', description: 'Pickup & drop', category: 'delivery_errands', reward: 10000, time_estimate: '1h', location: 'La Nopalera', ...nearby(0.001, 0.001), user_id: 'user23', created_at: new Date().toISOString(), status: 'open', priority: 'low', is_urgent: false },
-  // tech support
-  { id: 'tech-1', title: 'WiFi Setup', description: 'Router config', category: 'tech_support', reward: 16000, time_estimate: '1h', location: 'Avenida 24', ...nearby(-0.0012, 0.0009), user_id: 'user24', created_at: new Date().toISOString(), status: 'open', priority: 'medium', is_urgent: false },
-  // photography
-  { id: 'photo-1', title: 'Portrait Session', description: '30 min session', category: 'photography', reward: 20000, time_estimate: '1h', location: 'San José', ...nearby(0.0014, 0.0008), user_id: 'user25', created_at: new Date().toISOString(), status: 'open', priority: 'low', is_urgent: false },
-];
-
-// Demo user profiles with stored locations (near La Nopalera)
-type DemoProfile = {
-  id: string;
-  email?: string;
-  full_name: string;
-  avatar_url?: string;
-  location: string;
-  latitude: number;
-  longitude: number;
-  rating?: number;
-  total_jobs?: number;
-  total_earnings?: number;
-  is_verified?: boolean;
-};
-
-const demoProfileFactory = (id: string, idx: number): DemoProfile => ({
-  id,
-  email: `${id}@demo.currijobs.local`,
-  full_name: `Demo User ${idx}`,
-  location: 'Avenida 24, San José, La Nopalera, Costa Rica',
-  latitude: DEMO_LAT + (idx % 3) * 0.0004,
-  longitude: DEMO_LON + (idx % 5) * 0.0003,
-  rating: 4 + ((idx % 10) / 10),
-  total_jobs: 10 + idx,
-  total_earnings: 100000 + idx * 1000,
-  is_verified: idx % 2 === 0,
-});
-
-const DEMO_PROFILES: Record<string, DemoProfile> = {};
-
-// Seed demo profiles for ids referenced in MOCK_TASKS
-(() => {
-  const userIds = new Set<string>();
-  MOCK_TASKS.forEach(t => t.user_id && userIds.add(t.user_id));
-  Array.from(userIds).forEach((id, i) => {
-    DEMO_PROFILES[id] = demoProfileFactory(id, i + 1);
-  });
-  // Ensure explicit seeded users for login flows exist with full profiles
-  const seededLoginUsers: Array<{ id: string; idx: number; email: string }> = [
-    { id: '00000000-0000-0000-0000-000000000001', idx: 101, email: 'demo@currijobs.com' },
-    { id: '00000000-0000-0000-0000-000000000002', idx: 102, email: 'user2@currijobs.com' },
-    { id: '00000000-0000-0000-0000-000000000003', idx: 103, email: 'user3@currijobs.com' },
-    { id: '00000000-0000-0000-0000-000000000004', idx: 104, email: 'user4@currijobs.com' },
-  ];
-  for (const u of seededLoginUsers) {
-    if (!DEMO_PROFILES[u.id]) {
-      const base = demoProfileFactory(u.id, u.idx);
-      DEMO_PROFILES[u.id] = { ...base, email: u.email };
-    }
-  }
-})();
+// Production-ready Supabase integration - NO MOCK DATA! 🚀
 
 // Persist user location in profile (demo and real)
 export const saveUserLocation = async (
