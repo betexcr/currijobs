@@ -87,6 +87,15 @@ async function saveDemoTasks(tasks: Task[]): Promise<void> {
   }
 }
 
+export const clearDemoTasks = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(DEMO_TASKS_KEY);
+    console.log('Demo tasks cleared from local storage');
+  } catch (error) {
+    console.error('Error clearing demo tasks:', error);
+  }
+};
+
 // Task-related functions
 export const fetchTasks = async (): Promise<Task[]> => {
   // If demo mode is enabled, return mock data
@@ -183,8 +192,13 @@ export const fetchTasks = async (): Promise<Task[]> => {
 
     if (error) {
       console.error('Supabase error details:', { message: error.message, details: error.details, hint: error.hint, code: error.code, timedOut });
-      // Only fallback to demo when Supabase is not in use; otherwise return empty
-      if (!useSupabase() || isDemoMode()) {
+      // When Supabase is enabled, NEVER fallback to local data - only return what's in Supabase
+      if (useSupabase()) {
+        console.warn('[Supabase enabled] Returning empty array due to fetch error - no local fallback');
+        return [];
+      }
+      // Only fallback to demo when Supabase is not in use
+      if (isDemoMode()) {
         try {
           const created = await loadDemoTasks();
           const fallback = [...created, ...MOCK_TASKS] as Task[];
@@ -288,22 +302,28 @@ export const fetchTaskById = async (taskId: string): Promise<Task | null> => {
   }
 
   try {
-    // Check local created tasks first to support offline/demo-created tasks
+    // When Supabase is enabled, ONLY fetch from Supabase - no local fallback
+    if (useSupabase()) {
+      const { data, error } = await db
+        .from('tasks')
+        .select('*')
+        .eq('id', taskId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching task from Supabase:', error);
+        return null;
+      }
+
+      return data;
+    }
+    
+    // Only check local tasks when Supabase is disabled
     const created = await loadDemoTasks();
     const localHit = created.find(t => t.id === taskId);
     if (localHit) return localHit;
-    const { data, error } = await db
-      .from('tasks')
-      .select('*')
-      .eq('id', taskId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching task:', error);
-      return null;
-    }
-
-    return data;
+    
+    return null;
   } catch (error: any) {
     console.error('Error fetching task:', error);
     return null;
@@ -313,20 +333,8 @@ export const fetchTaskById = async (taskId: string): Promise<Task | null> => {
 export const createTask = async (taskData: CreateTaskData, userId: string): Promise<Task | null> => {
   try {
     const validatedData = validateCreateTask(taskData);
-    // Always create a local copy so UI works without backend
-    const localTask: Task = {
-      ...validatedData,
-      id: generateUuid(),
-      created_at: new Date().toISOString(),
-      status: 'open',
-      priority: 'medium',
-      is_urgent: false,
-      user_id: userId || 'demo-user',
-    } as Task;
-    const existing = await loadDemoTasks();
-    await saveDemoTasks([localTask, ...existing]);
-
-    // If Supabase usage is enabled, try inserting there too (best-effort)
+    
+    // If Supabase is enabled, ONLY save to Supabase - no local fallback
     if (useSupabase()) {
       try {
         const { data, error } = await db
@@ -339,19 +347,38 @@ export const createTask = async (taskData: CreateTaskData, userId: string): Prom
           })
           .select()
           .single();
+        
         if (error) {
-          console.warn('Supabase createTask failed; using local only:', error?.message || error);
-        } else {
-          const validatedTask = safeValidateTask(data);
-          if (!validatedTask.success) {
-            console.warn('Supabase returned invalid task; keeping local copy');
-          }
+          console.error('Supabase createTask failed:', error?.message || error);
+          return null; // Don't create task if Supabase fails
         }
+        
+        const validatedTask = safeValidateTask(data);
+        if (!validatedTask.success) {
+          console.error('Supabase returned invalid task data');
+          return null;
+        }
+        
+        return data as Task;
       } catch (e) {
-        console.warn('Supabase createTask exception; using local only');
+        console.error('Supabase createTask exception:', e);
+        return null; // Don't create task if Supabase fails
       }
     }
-
+    
+    // Only use local storage when Supabase is disabled (demo mode)
+    const localTask: Task = {
+      ...validatedData,
+      id: generateUuid(),
+      created_at: new Date().toISOString(),
+      status: 'open',
+      priority: 'medium',
+      is_urgent: false,
+      user_id: userId || 'demo-user',
+    } as Task;
+    const existing = await loadDemoTasks();
+    await saveDemoTasks([localTask, ...existing]);
+    
     return localTask;
   } catch (error: any) {
     console.error('Error creating task:', error);
