@@ -1066,8 +1066,8 @@ export default function MapScreen() {
           <MapView
           ref={mapRef}
           style={styles.map}
-          provider={(isAmazonAndroid() || isExpoGo) ? undefined : (Platform.OS === 'ios' ? PROVIDER_GOOGLE : undefined)}
-            mapType={(isAmazonAndroid() || isExpoGoAndroid) ? 'none' : 'standard'}
+          provider={isAmazonAndroid() ? undefined : PROVIDER_GOOGLE}
+            mapType={isAmazonAndroid() ? 'none' : 'standard'}
             customMapStyle={isAmazonAndroid() ? undefined : (theme.mode === 'dark' ? NIGHT_MAP_STYLE : [])}
           initialRegion={{
             latitude: userLocation?.coords.latitude || GBSYS_COSTA_RICA.latitude,
@@ -1125,7 +1125,7 @@ export default function MapScreen() {
             if (previewTaskId) setPreviewTaskId(null);
           }}
         >
-          {(isAmazonAndroid() || isExpoGoAndroid) && (
+          {isAmazonAndroid() && (
             <UrlTile
               urlTemplate={theme.mode === 'dark' ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
               maximumZ={19}
