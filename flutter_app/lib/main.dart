@@ -2,9 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/supabase_client.dart';
+import 'core/auth_provider.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/register_screen.dart';
 import 'features/onboarding_screen.dart';
@@ -56,24 +58,36 @@ class _CurrijobsAppState extends State<CurrijobsApp> {
       GoRoute(path: '/rank', builder: (context, state) => const RankScreen()),
     ],
     redirect: (context, state) {
-      final session = Supabase.instance.client.auth.currentSession;
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final location = state.uri.toString();
       final loggingIn = location == '/login' || location == '/register';
-      if (session == null && !loggingIn) return '/login';
-      if (session != null && (loggingIn || location == '/')) return '/tasks';
+      
+      if (authProvider.loading) return null; // Still loading, don't redirect
+      
+      if (!authProvider.isAuthenticated && !loggingIn && location != '/') {
+        return '/login';
+      }
+      
+      if (authProvider.isAuthenticated && (loggingIn || location == '/')) {
+        return '/tasks';
+      }
+      
       return null;
     },
   );
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Currijobs',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
+    return ChangeNotifierProvider(
+      create: (context) => AuthProvider(),
+      child: MaterialApp.router(
+        title: 'Currijobs',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E3A8A)),
+          useMaterial3: true,
+        ),
+        routerConfig: _router,
       ),
-      routerConfig: _router,
     );
   }
 }
