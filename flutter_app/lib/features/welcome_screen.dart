@@ -16,8 +16,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   bool _imageLoaded = false;
   bool _splashTimerComplete = false;
   bool _isLoggingIn = false;
-  final TextEditingController _emailController = TextEditingController(text: 'user2@currijobs.com');
-  final TextEditingController _passwordController = TextEditingController(text: 'user2123456');
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   @override
   void initState() {
@@ -67,46 +67,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     }
   }
 
-  Future<void> _handleMockLogin() async {
-    setState(() => _isLoggingIn = true);
-    
-    try {
-      print('Attempting mock login with: ${_emailController.text}');
-      
-      // Simulate login delay
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // Create mock user like React Native app
-      final mockUser = {
-        'id': '00000000-0000-0000-0000-000000000002',
-        'email': 'user2@currijobs.com',
-        'created_at': DateTime.now().toIso8601String(),
-      };
-      
-      print('Mock login successful for user: ${mockUser['email']}');
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Mock login successful!')),
-        );
-        
-        // Navigate to tasks screen
-        context.go('/tasks');
-      }
-    } catch (e) {
-      print('Mock login error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Mock login failed: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoggingIn = false);
-      }
-    }
-  }
-
   Future<void> _handleLogin() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -115,18 +75,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       return;
     }
 
-    // Use mock login for testing (like React Native app)
-    await _handleMockLogin();
-    
-    // Uncomment below for real Supabase authentication
-    /*
     setState(() => _isLoggingIn = true);
-    
-    // First check if user exists
-    await _checkUserExists();
     
     try {
       print('Attempting login with: ${_emailController.text}');
+      
+      // First check if user exists in profiles table
+      await _checkUserExists();
+      
+      // Use real Supabase authentication
       final authProvider = context.read<AuthProvider>();
       final response = await authProvider.signIn(_emailController.text, _passwordController.text);
       
@@ -136,6 +93,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Login successful!')),
           );
+          context.go('/tasks'); // Navigate to tasks screen
         }
       } else {
         print('Login failed: No user returned');
@@ -149,7 +107,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       print('Login error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login failed: $e')),
+          SnackBar(content: Text('Login failed: ${e.toString()}')),
         );
       }
     } finally {
@@ -157,7 +115,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         setState(() => _isLoggingIn = false);
       }
     }
-    */
   }
 
   @override
@@ -319,6 +276,31 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       child: Text(
                         _isLoggingIn ? 'Logging in...' : 'Login',
                         style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Sign Up button
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: _isLoggingIn ? null : () => context.go('/register'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF1E3A8A),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: const BorderSide(color: Color(0xFF1E3A8A)),
+                      ),
+                      child: const Text(
+                        'Sign Up',
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),

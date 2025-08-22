@@ -41,7 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registration successful! Please check your email.')),
         );
-        Navigator.of(context).pop(); // Go back to login
+        context.go('/'); // Go back to login
       }
     } catch (e) {
       if (mounted) {
@@ -70,7 +70,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () => context.go('/'),
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
                   const Text(
@@ -357,7 +357,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                             TextButton(
                               onPressed: () {
-                                Navigator.of(context).pop();
+                                context.go('/');
                               },
                               child: const Text(
                                 'Sign In',

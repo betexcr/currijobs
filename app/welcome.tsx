@@ -28,9 +28,9 @@ export default function WelcomeScreen() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [splashTimerComplete, setSplashTimerComplete] = useState(false);
-  // Set default user based on device type - preset with user2 credentials
-  const [email, setEmail] = useState('user2@currijobs.com');
-  const [password, setPassword] = useState('user2123456');
+  // User input fields
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const splashSource = require('../assets/splash.png');
   const [splashHeight, setSplashHeight] = useState(height);
 
@@ -69,46 +69,18 @@ export default function WelcomeScreen() {
   // Show login screen after 3 seconds, regardless of image load status
   const shouldShowLogin = splashTimerComplete;
 
-  const handleMockLogin = async () => {
-    setIsLoggingIn(true);
-    try {
-      console.log('Attempting mock login with:', email);
-      
-      // Simulate login delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Create mock user like the seeded users in AuthContext
-      const mockUser = {
-        id: '00000000-0000-0000-0000-000000000002',
-        email: 'user2@currijobs.com',
-        created_at: new Date().toISOString(),
-      };
-      
-      console.log('Mock login successful for user:', mockUser.email);
-      Alert.alert('Success', 'Mock login successful!');
-      
-      // Navigate to onboarding
-      router.replace('/onboarding');
-    } catch (error) {
-      console.error('Mock login error:', error);
-      Alert.alert(t('error'), 'Mock login failed');
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
   const handleLogin = async () => {
-    // Use mock login for testing (matching Flutter app behavior)
-    await handleMockLogin();
-    
-    // Uncomment below for real Supabase authentication
-    /*
     setIsLoggingIn(true);
     try {
+      console.log('Attempting login with:', email);
       const result = await signIn(email, password);
       if (result.error) {
         console.error('Login failed:', result.error);
         Alert.alert(t('error'), t('loginFailed'));
+      } else {
+        console.log('Login successful for user:', result.data?.user?.email);
+        Alert.alert(t('success'), 'Login successful!');
+        // Navigation will be handled by the AuthContext
       }
     } catch (error) {
       console.error('Login failed:', error);
@@ -116,7 +88,6 @@ export default function WelcomeScreen() {
     } finally {
       setIsLoggingIn(false);
     }
-    */
   };
 
   const handleSkipToOnboarding = () => {
@@ -195,6 +166,16 @@ export default function WelcomeScreen() {
             </Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.signupButton}
+            onPress={() => router.push('/register')}
+            disabled={isLoggingIn}
+          >
+            <Text style={styles.signupButtonText}>
+              {t('signUp')}
+            </Text>
+          </TouchableOpacity>
+
           {/* Removed skip to app link as login is required */}
         </View>
       </View>
@@ -254,6 +235,20 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  signupButton: {
+    borderWidth: 2,
+    borderColor: '#1E3A8A',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  signupButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1E3A8A',
   },
   skipButton: {
     alignItems: 'center',
