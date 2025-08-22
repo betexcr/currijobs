@@ -11,17 +11,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:currijobs_flutter/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('Currijobs app smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const CurrijobsApp());
 
-    // Verify that our counter starts at 0.
+    // Verify that our app builds successfully
     expect(find.byType(MaterialApp), findsOneWidget);
-
-    // Tap the '+' icon and trigger a frame.
-    // No counter in this scaffolded app. Just ensure it builds.
-
-    // Verify that our counter has incremented.
-    expect(find.byType(MaterialApp), findsOneWidget);
+    
+    // Verify that the welcome screen is shown initially
+    expect(find.text('Welcome to Currijobs'), findsOneWidget);
+    expect(find.text('Get Started'), findsOneWidget);
+    expect(find.text('Create Account'), findsOneWidget);
   });
 }

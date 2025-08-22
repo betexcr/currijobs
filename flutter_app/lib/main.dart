@@ -47,10 +47,28 @@ class _CurrijobsAppState extends State<CurrijobsApp> {
       GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
       GoRoute(path: '/tasks', builder: (context, state) => const TasksScreen()),
       GoRoute(path: '/my-tasks', builder: (context, state) => const MyTasksScreen()),
-      GoRoute(path: '/task/:id', builder: (context, state) => const TaskDetailScreen()),
+      GoRoute(
+        path: '/task/:id',
+        builder: (context, state) {
+          final taskId = state.pathParameters['id']!;
+          return TaskDetailScreen(taskId: taskId);
+        },
+      ),
       GoRoute(path: '/make-offer', builder: (context, state) => const MakeOfferScreen()),
-      GoRoute(path: '/chat/:taskId', builder: (context, state) => const ChatScreen()),
-      GoRoute(path: '/payment/:id', builder: (context, state) => const PaymentScreen()),
+      GoRoute(
+        path: '/chat/:taskId',
+        builder: (context, state) {
+          final taskId = state.pathParameters['taskId']!;
+          return ChatScreen(taskId: taskId);
+        },
+      ),
+      GoRoute(
+        path: '/payment/:id',
+        builder: (context, state) {
+          final paymentId = state.pathParameters['id']!;
+          return PaymentScreen(paymentId: paymentId);
+        },
+      ),
       GoRoute(path: '/map', builder: (context, state) => const MapScreen()),
       GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
       GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
