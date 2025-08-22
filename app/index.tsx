@@ -20,7 +20,7 @@ import Constants from 'expo-constants';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { getCategoryLabel } from '../lib/utils';
-import { isAmazonAndroid } from '../lib/utils';
+import { shouldUseOSMTiles } from '../lib/utils';
 import { fetchTasks, calculateDistance, fetchUserProfile, seedLocalTasksIfNeeded } from '../lib/database';
 import { testSupabaseConnection, testSupabaseAuth, testSupabaseTables, testSupabaseNetwork } from '../lib/supabase-test';
 import { useSupabase } from '../lib/feature-flags';
@@ -158,16 +158,19 @@ export default function MapScreen() {
   }, [authLoading, loading, user]);
   useEffect(() => {
     if (authLoading) return; // Wait for auth to load
+    
+    // Redirect to welcome screen if no user
+    if (!user) {
+      (globalThis as any).console?.log?.('No user found, redirecting to welcome screen...');
+      router.replace('/welcome');
+      return;
+    }
+    
     if (supabaseEnabled) {
       testSupabaseConnection().then(() => {});
       testSupabaseAuth().then(() => {});
       testSupabaseTables().then(() => {});
       testSupabaseNetwork().then(() => {});
-    }
-    // In demo/simulator, allow map to load with demo user
-    if (!user) {
-      (globalThis as any).console?.log?.('No user set yet; waiting for auth or demo seed...');
-      return;
     }
     getCurrentLocation();
   }, [user, authLoading, router, supabaseEnabled]);
@@ -1066,9 +1069,9 @@ export default function MapScreen() {
           <MapView
           ref={mapRef}
           style={styles.map}
-          provider={isAmazonAndroid() ? undefined : PROVIDER_GOOGLE}
-            mapType={isAmazonAndroid() ? 'none' : 'standard'}
-            customMapStyle={isAmazonAndroid() ? undefined : (theme.mode === 'dark' ? NIGHT_MAP_STYLE : [])}
+          provider={shouldUseOSMTiles() ? undefined : PROVIDER_GOOGLE}
+            mapType={shouldUseOSMTiles() ? 'none' : 'standard'}
+            customMapStyle={shouldUseOSMTiles() ? undefined : (theme.mode === 'dark' ? NIGHT_MAP_STYLE : [])}
           initialRegion={{
             latitude: userLocation?.coords.latitude || GBSYS_COSTA_RICA.latitude,
             longitude: userLocation?.coords.longitude || GBSYS_COSTA_RICA.longitude,
@@ -1125,7 +1128,7 @@ export default function MapScreen() {
             if (previewTaskId) setPreviewTaskId(null);
           }}
         >
-          {isAmazonAndroid() && (
+          {shouldUseOSMTiles() && (
             <UrlTile
               urlTemplate={theme.mode === 'dark' ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
               maximumZ={19}

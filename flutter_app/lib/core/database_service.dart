@@ -318,4 +318,39 @@ class DatabaseService {
         return Icons.camera_alt;
     }
   }
+
+  // Check if user exists
+  Future<bool> checkUserExists(String email) async {
+    try {
+      final response = await SupabaseManager.client
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .single();
+      
+      return response != null;
+    } catch (e) {
+      debugPrint('Error checking user existence: $e');
+      return false;
+    }
+  }
+
+  // Get user profile by email
+  Future<UserProfile?> getUserByEmail(String email) async {
+    try {
+      final response = await SupabaseManager.client
+          .from('profiles')
+          .select('*')
+          .eq('email', email)
+          .single();
+      
+      if (response != null) {
+        return UserProfile.fromJson(response);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting user by email: $e');
+      return null;
+    }
+  }
 }

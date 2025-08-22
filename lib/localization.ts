@@ -479,13 +479,13 @@ const localizations: Record<Language, LocalizationStrings> = {
     
     // Onboarding Steps
     onboardingStep1Title: 'Explora trabajos cerca de ti',
-    onboardingStep1Description: 'Usa el mapa para encontrar trabajos disponibles en tu área. Cada marcador representa una oportunidad de trabajo.',
+    onboardingStep1Description: 'Usa el mapa para encontrar trabajos cerca de ti. Cada marcador es una oportunidad.',
     onboardingStep2Title: 'Filtra por categoría',
-    onboardingStep2Description: 'Encuentra exactamente lo que buscas usando nuestros filtros por categoría: limpieza, plomería, jardinería y más.',
+    onboardingStep2Description: 'Usa filtros por categoría para encontrar exactamente lo que necesitas.',
     onboardingStep3Title: 'Crea y gestiona tus trabajos',
-    onboardingStep3Description: 'Publica tus propios trabajos o aplica a otros. Mantén un control total de tus actividades.',
+    onboardingStep3Description: 'Publica tus propios trabajos o aplica a los de otros. Mantén el control total.',
     onboardingStep4Title: '¡Listo para empezar!',
-    onboardingStep4Description: 'Ya tienes todo lo que necesitas para comenzar a trabajar. ¡Bienvenido a la comunidad de CurriJobs!',
+    onboardingStep4Description: 'Ya tienes todo para empezar. ¡Bienvenido a la comunidad Currijobs!',
     
     // Additional strings
     category: 'Categoría',
@@ -758,13 +758,13 @@ const localizations: Record<Language, LocalizationStrings> = {
     
     // Onboarding Steps
     onboardingStep1Title: 'Explore jobs near you',
-    onboardingStep1Description: 'Use the map to find available jobs in your area. Each marker represents a job opportunity.',
+    onboardingStep1Description: 'Use the map to find jobs near you. Each marker is an opportunity.',
     onboardingStep2Title: 'Filter by category',
-    onboardingStep2Description: 'Find exactly what you\'re looking for using our category filters: cleaning, plumbing, gardening, and more.',
+    onboardingStep2Description: 'Use category filters to find exactly what you need.',
     onboardingStep3Title: 'Create and manage your jobs',
-    onboardingStep3Description: 'Post your own jobs or apply to others. Keep full control of your activities.',
+    onboardingStep3Description: 'Post your own jobs or apply to others. Stay in full control.',
     onboardingStep4Title: 'Ready to start!',
-    onboardingStep4Description: 'You have everything you need to start working. Welcome to the CurriJobs community!',
+    onboardingStep4Description: 'You\'re all set. Welcome to the Currijobs community!',
     
     // Additional strings
     category: 'Category',
@@ -1029,13 +1029,13 @@ const localizations: Record<Language, LocalizationStrings> = {
     
     // Onboarding Steps
     onboardingStep1Title: '探索附近的职位',
-    onboardingStep1Description: '使用地图查找您附近的可用职位。每个标记代表一个工作机会。',
+    onboardingStep1Description: '使用地图查找您附近的职位。每个标记都是一个机会。',
     onboardingStep2Title: '按类别筛选',
-    onboardingStep2Description: '使用我们的类别筛选器找到您要找的内容：清洁、管道、园艺等。',
+    onboardingStep2Description: '使用类别筛选器找到您需要的确切内容。',
     onboardingStep3Title: '创建和管理您的职位',
-    onboardingStep3Description: '发布您自己的职位或申请其他职位。完全控制您的活动。',
+    onboardingStep3Description: '发布您自己的职位或申请其他职位。保持完全控制。',
     onboardingStep4Title: '准备开始！',
-    onboardingStep4Description: '您拥有开始工作所需的一切。欢迎加入 CurriJobs 社区！',
+    onboardingStep4Description: '您已准备就绪。欢迎加入 Currijobs 社区！',
     
     // Additional strings
     category: '类别',

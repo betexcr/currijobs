@@ -2,6 +2,7 @@ import { TaskCategory } from './types';
 import type { LocalizationStrings } from './localization';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 // Category icons mapping
 export const getCategoryIcon = (category: TaskCategory): string => {
@@ -203,5 +204,42 @@ export const debounce = <T extends (...args: any[]) => any>(
 // Platform helpers
 export const isAmazonAndroid = (): boolean => {
   const manufacturer = (Device.manufacturer || '').toLowerCase();
-  return Platform.OS === 'android' && manufacturer === 'amazon';
+  const brand = (Device.brand || '').toLowerCase();
+  const model = (Device.modelName || '').toLowerCase();
+  
+  // Devices that have issues with Google Maps in Expo Go
+  const problematicDevices = [
+    'amazon',
+    'motorola',
+    'lenovo',
+    'huawei',
+    'honor',
+    'xiaomi',
+    'oppo',
+    'vivo',
+    'oneplus',
+    'realme'
+  ];
+  
+  return Platform.OS === 'android' && (
+    problematicDevices.some(device => 
+      manufacturer.includes(device) || 
+      brand.includes(device) ||
+      model.includes(device)
+    )
+  );
+};
+
+// Force OSM tiles for ALL Android devices in Expo Go
+export const shouldUseOSMTiles = (): boolean => {
+  const isExpoGo = (Constants as any)?.appOwnership === 'expo';
+  const isAndroid = Platform.OS === 'android';
+  
+  // Allow Google Maps in Expo Go for testing (comment out to force OSM)
+  // if (isExpoGo && isAndroid) {
+  //   return true;
+  // }
+  
+  // Only use OSM for problematic devices
+  return isAmazonAndroid();
 };

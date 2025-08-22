@@ -88,7 +88,11 @@ export default function CreateTaskForm({ initialCoords = null, initialCategory =
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.welcomeSection}>
-          <ChambitoMascot mood="working" size="medium" />
+          <Image 
+            source={require('../assets/create-new-task.png')} 
+            style={styles.welcomeImage}
+            resizeMode="contain"
+          />
           <Text style={styles.welcomeTitle}>Create a New Task</Text>
           <Text style={styles.welcomeSubtitle}>Help others and earn money</Text>
         </View>
@@ -311,6 +315,11 @@ const styles = StyleSheet.create({
   welcomeSection: {
     alignItems: 'center',
     marginBottom: 30,
+  },
+  welcomeImage: {
+    width: 120,
+    height: 120,
+    marginBottom: 16,
   },
   welcomeTitle: {
     fontSize: 24,

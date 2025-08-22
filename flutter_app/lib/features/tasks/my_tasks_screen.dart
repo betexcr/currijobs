@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/auth_provider.dart';
 import '../../core/database_service.dart';
 import '../../core/types.dart';
@@ -396,7 +397,7 @@ class _MyTasksScreenState extends State<MyTasksScreen>
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      Navigator.of(context).pushNamed('/task/${task.id}');
+                      context.go('/task/${task.id}');
                     },
                     icon: const Icon(Icons.visibility, size: 16),
                     label: const Text('View'),

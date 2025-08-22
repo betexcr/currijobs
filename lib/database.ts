@@ -30,16 +30,6 @@ export const saveUserLocation = async (
   locationText?: string
 ): Promise<boolean> => {
   try {
-    if (isDemoMode()) {
-      const existing = DEMO_PROFILES[userId] || demoProfileFactory(userId, Object.keys(DEMO_PROFILES).length + 1);
-      DEMO_PROFILES[userId] = {
-        ...existing,
-        latitude,
-        longitude,
-        location: locationText || existing.location,
-      };
-      return true;
-    }
     const { error } = await db
       .from('profiles')
       .update({ latitude, longitude, location: locationText })
@@ -212,12 +202,14 @@ export const fetchTasks = async (): Promise<Task[]> => {
     }
 
     console.log('Successfully fetched tasks:', data?.length || 0, 'in', (Date.now() - startFetch) + 'ms');
-    const createdLocal = await loadDemoTasks();
-    // When using Supabase, DO NOT merge local demo tasks
+    
+    // When using Supabase, ONLY return Supabase data - no local merge
     if (useSupabase()) {
       return (data || []) as Task[];
     }
-    // Otherwise, merge local created tasks so creation works without backend
+    
+    // Only merge local tasks when Supabase is disabled (demo mode)
+    const createdLocal = await loadDemoTasks();
     return [
       ...((data || []) as Task[]),
       ...createdLocal,
@@ -391,8 +383,7 @@ export const updateTask = async (taskId: string, updates: Partial<Task>): Promis
     const { data, error } = await db
       .from('tasks')
       .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
+        ...updates
       })
       .eq('id', taskId)
       .select()
@@ -510,7 +501,7 @@ export const assignOfferToTask = async (taskId: string, offerId: string): Promis
     }
     const { error } = await db
       .from('tasks')
-      .update({ assigned_to: offer.user_id, status: 'in_progress', updated_at: new Date().toISOString() })
+      .update({ assigned_to: offer.user_id, status: 'in_progress' })
       .eq('id', taskId);
     if (error) {
       console.error('assignOfferToTask: update failed', error);
@@ -535,7 +526,7 @@ export const cancelAssignedTaskByWorker = async (taskId: string, workerId: strin
     if (task.assigned_to !== workerId || task.status !== 'in_progress') return false;
     const { error } = await db
       .from('tasks')
-      .update({ assigned_to: null, status: 'open', updated_at: new Date().toISOString() })
+      .update({ assigned_to: null, status: 'open' })
       .eq('id', taskId);
     if (error) return false;
     try {
@@ -560,7 +551,7 @@ export const finishTaskByOwner = async (taskId: string, ownerId: string): Promis
     if (task.user_id !== ownerId) return false;
     const { error } = await db
       .from('tasks')
-      .update({ status: 'completed', updated_at: new Date().toISOString() })
+      .update({ status: 'completed' })
       .eq('id', taskId);
     if (error) return false;
     // Notify both owner and worker (if any)
@@ -590,7 +581,7 @@ export const cancelTaskByOwner = async (taskId: string, ownerId: string, reason?
     if (task.user_id !== ownerId) return false;
     const { error } = await db
       .from('tasks')
-      .update({ status: 'cancelled', assigned_to: null, updated_at: new Date().toISOString() })
+      .update({ status: 'cancelled', assigned_to: null })
       .eq('id', taskId);
     if (error) return false;
     try {
@@ -753,9 +744,11 @@ export const fetchWalletTransactions = fetchPaymentsForUser;
 // User-related functions
 export const fetchUserProfile = async (userId: string) => {
   try {
-    if (isDemoMode()) {
-      return DEMO_PROFILES[userId] || null;
+    if (!userId) {
+      console.warn('fetchUserProfile called with null/undefined userId');
+      return null;
     }
+    
     const { data, error } = await db
       .from('profiles')
       .select('*')
@@ -763,17 +756,14 @@ export const fetchUserProfile = async (userId: string) => {
       .single();
 
     if (error || !data) {
-      // Fallback: synthesize a local demo profile so UI can proceed without DB row
-      const fallback = DEMO_PROFILES[userId] || demoProfileFactory(userId, Object.keys(DEMO_PROFILES).length + 1000);
-      (globalThis as any).console?.warn?.('User profile not found in DB; using fallback profile for', userId);
-      return fallback;
+      console.warn('User profile not found in DB for', userId);
+      return null;
     }
 
     return data;
   } catch (error: any) {
     console.error('Error fetching user profile:', error);
-    // Last-resort fallback
-    return DEMO_PROFILES[userId] || demoProfileFactory(userId, Object.keys(DEMO_PROFILES).length + 2000);
+    return null;
   }
 };
 
@@ -1024,6 +1014,23 @@ export const fetchTasksByCategory = async (category: string): Promise<Task[]> =>
 
 export const fetchTasksByUser = async (userId: string): Promise<Task[]> => {
   try {
+    // When Supabase is enabled, ONLY fetch from Supabase - no local fallback
+    if (useSupabase()) {
+      const { data, error } = await db
+        .from('tasks')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching tasks by user from Supabase:', error);
+        return [];
+      }
+
+      return (data || []) as Task[];
+    }
+
+    // Only use local storage when Supabase is disabled (demo mode)
     if (isDemoMode()) {
       const created = await loadDemoTasks();
       const all = [...created, ...MOCK_TASKS];
@@ -1031,20 +1038,7 @@ export const fetchTasksByUser = async (userId: string): Promise<Task[]> => {
       return all.filter(t => t.user_id === userId);
     }
 
-    const { data, error } = await db
-      .from('tasks')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching tasks by user:', error);
-      return [];
-    }
-
-    const localCreated = await loadDemoTasks();
-    const merged = [...(data || []), ...localCreated.filter(t => t.user_id === userId)];
-    return merged;
+    return [];
   } catch (error: any) {
     console.error('Error fetching tasks by user:', error);
     return [];

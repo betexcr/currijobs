@@ -29,13 +29,17 @@ export const auth = new GoTrueClient({
   storageKey: 'supabase.auth.token',
   storage: AsyncStorage,
   fetch,
+  headers: {
+    apikey: supabaseAnonKey,
+    Authorization: `Bearer ${supabaseAnonKey}`,
+  },
 });
 
 // DB client setup (for querying data)
 const postgrestBase = USE_LOCAL_POSTGREST ? localPostgrestUrl : `${supabaseUrl}/rest/v1`;
 const commonHeaders = USE_LOCAL_POSTGREST
-  ? { Prefer: 'return=representation' }
-  : { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}` };
+  ? { Prefer: 'return=representation' } as Record<string, string>
+  : { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}` } as Record<string, string>;
 
 export const db = new PostgrestClient(postgrestBase, {
   headers: commonHeaders,
@@ -59,7 +63,7 @@ export const getAuthHeaders = async () => {
     }
     const { data: { session } } = await auth.getSession();
     return { apikey: supabaseAnonKey, Authorization: `Bearer ${session?.access_token || supabaseAnonKey}` };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error getting auth headers:', error);
     return USE_LOCAL_POSTGREST ? ({} as any) : { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}` };
   }
@@ -81,8 +85,8 @@ export const testConnection = async () => {
     }
     
     return { success: true, status: response.status };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Connection test failed:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 };

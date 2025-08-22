@@ -16,8 +16,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useLocalization } from '../contexts/LocalizationContext';
 import ThemeCustomizer from '../components/ThemeCustomizer';
 import MapView, { Marker, PROVIDER_GOOGLE, UrlTile } from 'react-native-maps';
-import { updateUserProfile } from '../lib/database';
-import { isAmazonAndroid } from '../lib/utils';
+import { updateUserProfile, clearDemoTasks } from '../lib/database';
+import { shouldUseOSMTiles } from '../lib/utils';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -246,8 +246,8 @@ export default function SettingsScreen() {
             <Text style={{ color: theme.colors.text.secondary }}>{t('yourLocation')}</Text>
             <View style={{ height: 220, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.border }}>
               <MapView
-                provider={isAmazonAndroid() ? undefined : PROVIDER_GOOGLE}
-                mapType={isAmazonAndroid() ? 'none' : 'standard'}
+                                                     provider={shouldUseOSMTiles() ? undefined : PROVIDER_GOOGLE}
+           mapType={shouldUseOSMTiles() ? 'none' : 'standard'}
                 style={{ flex: 1 }}
                 initialRegion={{
                   latitude: homeLat ?? 9.923035,
@@ -260,7 +260,7 @@ export default function SettingsScreen() {
                   setHomeLon(e.nativeEvent.coordinate.longitude);
                 }}
               >
-                {isAmazonAndroid() && (
+                                 {shouldUseOSMTiles() && (
                   <UrlTile
                     urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     maximumZ={19}
@@ -313,6 +313,37 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
         ))}
+
+        {/* Clear Demo Tasks */}
+        <TouchableOpacity
+          style={[styles.signOutButton, { backgroundColor: '#F59E0B', marginBottom: 12 }]}
+          onPress={async () => {
+            Alert.alert(
+              'Clear Demo Tasks',
+              'This will remove all locally stored demo tasks. This action cannot be undone.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                  text: 'Clear Tasks', 
+                  style: 'destructive', 
+                  onPress: async () => {
+                    try {
+                      await clearDemoTasks();
+                      Alert.alert('Success', 'Demo tasks have been cleared. Please restart the app to see the changes.');
+                    } catch (error) {
+                      Alert.alert('Error', 'Failed to clear demo tasks. Please try again.');
+                    }
+                  }
+                },
+              ]
+            );
+          }}
+        >
+          <Ionicons name="trash-outline" size={20} color="white" />
+          <Text style={[styles.signOutText, { color: 'white' }]}>
+            Clear Demo Tasks
+          </Text>
+        </TouchableOpacity>
 
         {/* Sign Out */}
         <TouchableOpacity

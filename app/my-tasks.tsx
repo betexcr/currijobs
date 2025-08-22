@@ -18,7 +18,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { isAmazonAndroid } from '../lib/utils';
+import { shouldUseOSMTiles } from '../lib/utils';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { fetchTasksByUser, fetchOfferCountsForTasks, fetchTasksAssignedToUser, fetchUserProfile, cancelAssignedTaskByWorker, finishTaskByOwner, cancelTaskByOwner } from '../lib/database';
 import { Task } from '../lib/types';
@@ -252,9 +252,9 @@ export default function MyTasksScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-          provider={(isAmazonAndroid() || isExpoGoAndroid) ? undefined : (Platform.OS === 'ios' ? PROVIDER_GOOGLE : undefined)}
-          mapType={(isAmazonAndroid() || isExpoGoAndroid) ? 'none' : 'standard'}
-          customMapStyle={isAmazonAndroid() ? undefined : (theme.mode === 'dark' ? NIGHT_MAP_STYLE : [])}
+          provider={shouldUseOSMTiles() ? undefined : (Platform.OS === 'ios' ? PROVIDER_GOOGLE : undefined)}
+          mapType={shouldUseOSMTiles() ? 'none' : 'standard'}
+          customMapStyle={shouldUseOSMTiles() ? undefined : (theme.mode === 'dark' ? NIGHT_MAP_STYLE : [])}
         initialRegion={{
           latitude: 9.923035,
           longitude: -84.043457,
@@ -270,7 +270,7 @@ export default function MyTasksScreen() {
         }}
         onRegionChangeComplete={(region) => setCurrentRegion(region)}
       >
-          {(isAmazonAndroid() || isExpoGoAndroid) && (
+          {shouldUseOSMTiles() && (
             <UrlTile
               urlTemplate={theme.mode === 'dark' ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
               maximumZ={19}

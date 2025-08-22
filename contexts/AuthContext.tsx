@@ -46,17 +46,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // - Otherwise: regular session lookup
         // iOS simulator detection heuristic: Platform.OS === 'ios' && !Platform.isPad && !Platform.isTV && running on simulator often lacks certain device info.
         if (Platform.OS === 'ios') {
-          // iOS mapping per request:
-          // - iPhone (non-iPad, including simulator) -> user2
-          // - iPad -> user3
-          const isPad = (Platform as any).isPad === true;
-          const desiredId = isPad ? '00000000-0000-0000-0000-000000000003' : '00000000-0000-0000-0000-000000000002';
-          const desiredEmail = isPad ? 'user3@currijobs.com' : 'user2@currijobs.com';
-          const seededUser = { id: desiredId, email: desiredEmail, created_at: new Date().toISOString() } as User;
-          // Set immediately so UI can proceed, fetch profile best-effort in background
-          setUser(seededUser);
-          setSession(null);
-          setLoading(false);
+                  // iOS mapping per request:
+        // - iPhone (non-iPad, including simulator) -> user2
+        // - iPad -> user3
+        const isPad = (Platform as any).isPad === true;
+        const desiredId = isPad ? '00000000-0000-0000-0000-000000000003' : '00000000-0000-0000-0000-000000000002';
+        const desiredEmail = isPad ? 'user3@currijobs.com' : 'user2@currijobs.com';
+        const seededUser = { id: desiredId, email: desiredEmail, created_at: new Date().toISOString() } as User;
+        
+        // TEMPORARY: Force welcome screen for testing
+        // Comment out the next 3 lines to see splash screen and onboarding
+        // setUser(seededUser);
+        // setSession(null);
+        // setLoading(false);
+        
+        // Instead, set user to null to show welcome screen
+        setUser(null);
+        setSession(null);
+        setLoading(false);
           // Background enrich (non-blocking)
           (async () => {
             try {
@@ -144,50 +151,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Removed auto-login mock. Users must log in via welcome/login.
 
   const signIn = async (email: string, password: string) => {
-    // Local dev shortcut: map demo credentials to the seeded UUID user
-    if (email === 'demo@currijobs.com' && password === 'demo123456') {
-      const seededUser = {
-        id: '00000000-0000-0000-0000-000000000001',
-        email: 'demo@currijobs.com',
-        created_at: new Date().toISOString(),
-      } as User;
-      const profile = await fetchUserProfile(seededUser.id);
-      setUser({ ...seededUser, ...(profile || {}) });
-      return { error: null };
-    }
-
-    // Local dev shortcuts for additional seeded users
-    if (email === 'user2@currijobs.com' && password === 'user2123456') {
-      const seededUser = {
-        id: '00000000-0000-0000-0000-000000000002',
-        email: 'user2@currijobs.com',
-        created_at: new Date().toISOString(),
-      } as User;
-      const profile = await fetchUserProfile(seededUser.id);
-      setUser({ ...seededUser, ...profile });
-      return { error: null };
-    }
-    if (email === 'user3@currijobs.com' && password === 'user3123456') {
-      const seededUser = {
-        id: '00000000-0000-0000-0000-000000000003',
-        email: 'user3@currijobs.com',
-        created_at: new Date().toISOString(),
-      } as User;
-      const profile = await fetchUserProfile(seededUser.id);
-      setUser({ ...seededUser, ...profile });
-      return { error: null };
-    }
-    if (email === 'user4@currijobs.com' && password === 'user4123456') {
-      const seededUser = {
-        id: '00000000-0000-0000-0000-000000000004',
-        email: 'user4@currijobs.com',
-        created_at: new Date().toISOString(),
-      } as User;
-      const profile = await fetchUserProfile(seededUser.id);
-      setUser({ ...seededUser, ...profile });
-      return { error: null };
-    }
-
     try {
       const { data, error } = await auth.signInWithPassword({
         email,
@@ -198,12 +161,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('Sign in error:', error);
         return { error };
       }
-      // Refresh hydrated user
-      const u = (await auth.getSession()).data.session?.user ?? null;
-      if (u) {
-        const profile = await fetchUserProfile(u.id);
-        setUser({ ...u, ...(profile || {}) });
+      
+      // Get the authenticated user and their profile
+      const user = data.user;
+      if (user) {
+        const profile = await fetchUserProfile(user.id);
+        setUser({ ...user, ...(profile || {}) });
       }
+      
       return { error: null };
     } catch (error) {
       console.error('Sign in error:', error);

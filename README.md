@@ -57,6 +57,9 @@ npx expo start --tunnel
 - Multi-language support: Spanish, English, Chinese
 - Real-time Supabase integration for live data
 - Remote access via secure tunnel
+- **Cross-platform compatibility** - Works on iOS, Android, and web
+- **Universal map support** - Google Maps on iOS, OSM tiles on Android
+- **Data integrity** - Only shows real Supabase data, no orphaned local data
 
 ## Tech Stack
 - React Native (Expo SDK 53)
@@ -102,6 +105,7 @@ The app uses feature flags for configuration:
 - `USE_SUPABASE: true` - Always fetch from Supabase (production ready)
 - `DEMO_MODE: false` - Production mode enabled
 - **NO MOCK DATA** - App only uses real Supabase data! 🚀
+- **Data integrity enforced** - App never shows orphaned local data
 
 ## Remote Testing
 
@@ -116,6 +120,7 @@ https://aoc2uxw-betexcr-8081.exp.direct
 2. **Open Expo Go** and tap "Enter URL"
 3. **Paste the tunnel URL** above
 4. **The app will load** with real Supabase data
+5. **Maps work on all devices** - iOS uses Google Maps, Android uses OSM tiles
 
 ### For Simulators
 ```bash
@@ -132,6 +137,8 @@ xcrun simctl openurl <DEVICE_ID> "exp://aoc2uxw-betexcr-8081.exp.direct"
 - Zero lint errors enforced for deployments
 - TypeScript strict mode enabled
 - Real-time Supabase integration tested
+- **Cross-platform testing** - Verified on iOS, Android, and web
+- **Map compatibility testing** - All Android devices supported
 
 ## Design & Theming
 - Light/Dark theme support
@@ -143,6 +150,13 @@ xcrun simctl openurl <DEVICE_ID> "exp://aoc2uxw-betexcr-8081.exp.direct"
 - Built-in translations for Spanish, English, and Chinese
 - Language can be switched from settings
 - RTL support ready
+
+## Recent Achievements (August 2025)
+- ✅ **Android Map Compatibility** - Fixed grey map issue on all Android devices
+- ✅ **Motorola Support** - Added comprehensive device detection for Motorola, Huawei, Xiaomi, etc.
+- ✅ **Data Integrity** - App only shows real Supabase data, no orphaned local tasks
+- ✅ **Universal Map Support** - Google Maps on iOS, OSM tiles on Android
+- ✅ **Expo Go Optimization** - All Android devices in Expo Go use OSM tiles automatically
 
 ## Roadmap
 The detailed phase plan and progress tracking live in `phases.md`.

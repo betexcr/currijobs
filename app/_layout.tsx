@@ -2,16 +2,19 @@ import { Stack } from 'expo-router';
 import { AuthProvider } from '../contexts/AuthContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { LocalizationProvider, useLocalization } from '../contexts/LocalizationContext';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function Layout() {
   return (
-    <LocalizationProvider>
-      <ThemeProvider>
-        <AuthProvider>
-        <LocalizedStack />
-        </AuthProvider>
-      </ThemeProvider>
-    </LocalizationProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <LocalizationProvider>
+        <ThemeProvider>
+          <AuthProvider>
+          <LocalizedStack />
+          </AuthProvider>
+        </ThemeProvider>
+      </LocalizationProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -29,6 +32,13 @@ function LocalizedStack() {
     >
           <Stack.Screen 
             name="welcome" 
+            options={{ 
+              title: t('welcomeToCurriJobs'),
+              headerShown: false 
+            }} 
+          />
+          <Stack.Screen 
+            name="onboarding" 
             options={{ 
               title: t('welcomeToCurriJobs'),
               headerShown: false 
@@ -90,13 +100,7 @@ function LocalizedStack() {
               headerShown: false 
             }} 
           />
-          <Stack.Screen 
-            name="create-task" 
-            options={{ 
-              title: t('createTask'),
-              headerShown: true 
-            }} 
-          />
+
           <Stack.Screen 
             name="task/[id]" 
             options={{ 

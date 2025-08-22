@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class MapScreen extends StatelessWidget {
   const MapScreen({super.key});
@@ -93,9 +94,9 @@ class MapScreen extends StatelessWidget {
             const SizedBox(height: 24),
             
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.of(context).pushNamed('/tasks');
-              },
+                      onPressed: () {
+          context.go('/tasks');
+        },
               icon: const Icon(Icons.search),
               label: const Text('Browse Tasks'),
               style: ElevatedButton.styleFrom(

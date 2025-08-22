@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/auth_provider.dart';
 import '../../core/database_service.dart';
@@ -104,9 +105,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.of(context).pushNamed('/settings');
-            },
+                    onPressed: () {
+          context.go('/settings');
+        },
           ),
         ],
       ),
@@ -299,25 +300,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: Icons.work,
             title: 'My Tasks',
             subtitle: 'View and manage your tasks',
-            onTap: () => Navigator.of(context).pushNamed('/my-tasks'),
+                            onTap: () => context.go('/my-tasks'),
           ),
           _buildMenuItem(
             icon: Icons.account_balance_wallet,
             title: 'Wallet',
             subtitle: 'Manage your earnings and payments',
-            onTap: () => Navigator.of(context).pushNamed('/wallet'),
+                            onTap: () => context.go('/wallet'),
           ),
           _buildMenuItem(
             icon: Icons.emoji_events,
             title: 'Rank',
             subtitle: 'View your ranking and achievements',
-            onTap: () => Navigator.of(context).pushNamed('/rank'),
+                            onTap: () => context.go('/rank'),
           ),
           _buildMenuItem(
             icon: Icons.settings,
             title: 'Settings',
             subtitle: 'App preferences and account settings',
-            onTap: () => Navigator.of(context).pushNamed('/settings'),
+                            onTap: () => context.go('/settings'),
           ),
           _buildMenuItem(
             icon: Icons.logout,

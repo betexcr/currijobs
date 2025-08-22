@@ -15,7 +15,7 @@ import * as Location from 'expo-location';
 import { useAuth } from '../contexts/AuthContext';
 import { taskService, Task, TASK_CATEGORIES } from '../lib/database';
 import ChambitoMascot from '../components/ChambitoMascot';
-import { isAmazonAndroid } from '../lib/utils';
+import { shouldUseOSMTiles } from '../lib/utils';
 
 interface TaskWithDistance extends Task {
   distance: number;
@@ -264,16 +264,16 @@ export default function MapScreen() {
       <View className="flex-1">
         <MapView
           ref={mapRef}
-          provider={isAmazonAndroid() ? undefined : PROVIDER_GOOGLE}
+          provider={shouldUseOSMTiles() ? undefined : PROVIDER_GOOGLE}
           style={{ flex: 1 }}
-          mapType={isAmazonAndroid() ? 'none' : 'standard'}
+          mapType={shouldUseOSMTiles() ? 'none' : 'standard'}
           region={region}
           showsUserLocation={true}
           showsMyLocationButton={true}
           showsCompass={true}
           showsScale={true}
         >
-          {isAmazonAndroid() && (
+          {shouldUseOSMTiles() && (
             <UrlTile
               urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               maximumZ={19}

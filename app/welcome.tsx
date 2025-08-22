@@ -26,16 +26,19 @@ export default function WelcomeScreen() {
   
   const [showLogin, setShowLogin] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [email, setEmail] = useState('demo@currijobs.com');
-  const [password, setPassword] = useState('demo123456');
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [splashTimerComplete, setSplashTimerComplete] = useState(false);
+  // Set default user based on device type - preset with user2 credentials
+  const [email, setEmail] = useState('user2@currijobs.com');
+  const [password, setPassword] = useState('user2123456');
   const splashSource = require('../assets/splash.png');
   const [splashHeight, setSplashHeight] = useState(height);
 
   useEffect(() => {
-    // Show login after 2 seconds
+    // Start 3-second timer immediately, don't wait for image
     const timer = setTimeout(() => {
-      setShowLogin(true);
-    }, 2000);
+      setSplashTimerComplete(true);
+    }, 3000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -63,9 +66,43 @@ export default function WelcomeScreen() {
     }
   }, [user, loading]);
 
-  // no get started button; splash auto-transitions
+  // Show login screen after 3 seconds, regardless of image load status
+  const shouldShowLogin = splashTimerComplete;
+
+  const handleMockLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      console.log('Attempting mock login with:', email);
+      
+      // Simulate login delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Create mock user like the seeded users in AuthContext
+      const mockUser = {
+        id: '00000000-0000-0000-0000-000000000002',
+        email: 'user2@currijobs.com',
+        created_at: new Date().toISOString(),
+      };
+      
+      console.log('Mock login successful for user:', mockUser.email);
+      Alert.alert('Success', 'Mock login successful!');
+      
+      // Navigate to onboarding
+      router.replace('/onboarding');
+    } catch (error) {
+      console.error('Mock login error:', error);
+      Alert.alert(t('error'), 'Mock login failed');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
 
   const handleLogin = async () => {
+    // Use mock login for testing (matching Flutter app behavior)
+    await handleMockLogin();
+    
+    // Uncomment below for real Supabase authentication
+    /*
     setIsLoggingIn(true);
     try {
       const result = await signIn(email, password);
@@ -79,13 +116,14 @@ export default function WelcomeScreen() {
     } finally {
       setIsLoggingIn(false);
     }
+    */
   };
 
   const handleSkipToOnboarding = () => {
     router.replace('/onboarding');
   };
 
-  if (!showLogin) {
+  if (!shouldShowLogin) {
     return (
       <View style={[styles.container, { backgroundColor: '#e3923d' }]}>
         {/* Splash Image - Fit Width */}
@@ -94,6 +132,7 @@ export default function WelcomeScreen() {
             source={splashSource}
             style={[styles.splashImage, { height: splashHeight }]}
             resizeMode="contain"
+            onLoad={() => setImageLoaded(true)}
           />
         </View>
       </View>

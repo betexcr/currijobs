@@ -1,7 +1,6 @@
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../core/auth_provider.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/database_service.dart';
 import '../../core/types.dart';
 
@@ -20,7 +19,6 @@ class _TasksScreenState extends State<TasksScreen> {
   List<Task> _filteredTasks = [];
   List<TaskCategory> _selectedCategories = [];
   bool _isLoading = true;
-  bool _isSearchFocused = false;
 
   @override
   void initState() {
@@ -123,8 +121,6 @@ class _TasksScreenState extends State<TasksScreen> {
                 TextField(
                   controller: _searchController,
                   onChanged: (_) => _filterTasks(),
-                  onTap: () => setState(() => _isSearchFocused = true),
-                  onSubmitted: (_) => setState(() => _isSearchFocused = false),
                   decoration: InputDecoration(
                     hintText: 'Search tasks...',
                     hintStyle: const TextStyle(color: Colors.grey),
@@ -270,9 +266,9 @@ class _TasksScreenState extends State<TasksScreen> {
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        onTap: () {
-          Navigator.of(context).pushNamed('/task/${task.id}');
-        },
+                            onTap: () {
+                      context.go('/task/${task.id}');
+                    },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -285,7 +281,7 @@ class _TasksScreenState extends State<TasksScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E3A8A).withOpacity(0.1),
+                      color: const Color(0xFF1E3A8A).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(

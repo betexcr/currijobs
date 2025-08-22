@@ -51,13 +51,13 @@ class Task {
     required this.description,
     required this.category,
     required this.reward,
+    required this.status,
+    required this.userId,
+    required this.createdAt,
     this.timeEstimate,
     this.location,
     this.latitude,
     this.longitude,
-    required this.status,
-    required this.userId,
-    required this.createdAt,
     this.updatedAt,
   });
 
@@ -125,6 +125,8 @@ class UserProfile {
   UserProfile({
     required this.id,
     required this.email,
+    required this.memberSince,
+    required this.createdAt,
     this.fullName,
     this.avatarUrl,
     this.phone,
@@ -136,9 +138,7 @@ class UserProfile {
     this.completedTasks = 0,
     this.totalEarnings = 0.0,
     this.walletBalance = 0.0,
-    required this.memberSince,
     this.verified = false,
-    required this.createdAt,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {

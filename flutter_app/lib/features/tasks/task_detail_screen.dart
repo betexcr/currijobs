@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/auth_provider.dart';
 import '../../core/database_service.dart';
 import '../../core/types.dart';
@@ -65,7 +66,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       return;
     }
 
-    Navigator.of(context).pushNamed('/make-offer', arguments: _task);
+    context.go('/make-offer');
   }
 
   @override
