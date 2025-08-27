@@ -43,58 +43,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Check for existing session
     const getSession = async () => {
       try {
-        // Auto-login rules by platform/device
-        // - iOS simulator: Force demo mode and skip login (keep user null, use demo dataset)
-        // - iPad: default to user3
-        // - Android: default to user2
-        // - Otherwise: regular session lookup
-        // iOS simulator detection heuristic: Platform.OS === 'ios' && !Platform.isPad && !Platform.isTV && running on simulator often lacks certain device info.
-        if (Platform.OS === 'ios') {
-                  // iOS mapping per request:
-        // - iPhone (non-iPad, including simulator) -> user2
-        // - iPad -> user3
-        const isPad = (Platform as any).isPad === true;
-        const desiredId = isPad ? '00000000-0000-0000-0000-000000000003' : '00000000-0000-0000-0000-000000000002';
-        const desiredEmail = isPad ? 'user3@currijobs.com' : 'user2@currijobs.com';
-        const seededUser = { id: desiredId, email: desiredEmail, created_at: new Date().toISOString() } as User;
-        
-        // Show splash screen and onboarding flow
-        // Comment out the next 3 lines to force welcome screen for testing
-        setUser(seededUser);
-        setSession(null);
-        setLoading(false);
-        
-        // Uncomment the next 3 lines to show welcome screen instead of splash
-        // setUser(null);
-        // setSession(null);
-        // setLoading(false);
-          // Background enrich (non-blocking)
-          (async () => {
-            try {
-              const profile = await fetchUserProfile(seededUser.id);
-              setUser(prev => ({ ...(prev || seededUser), ...(profile || {}) } as any));
-              const token = await registerForPushNotificationsAsync();
-              if (token) await saveExpoPushToken(seededUser.id, token);
-            } catch {}
-          })();
-          return;
-        } else if (Platform.OS === 'android') {
-          // Android devices -> user4
-          const seededUser = { id: '00000000-0000-0000-0000-000000000004', email: 'user4@currijobs.com', created_at: new Date().toISOString() } as User;
-          // Set immediately; enrich later
-          setUser(seededUser);
-          setSession(null);
-          setLoading(false);
-          (async () => {
-            try {
-              const profile = await fetchUserProfile(seededUser.id);
-              setUser(prev => ({ ...(prev || seededUser), ...(profile || {}) } as any));
-              const token = await registerForPushNotificationsAsync();
-              if (token) await saveExpoPushToken(seededUser.id, token);
-            } catch {}
-          })();
-          return;
-        }
+        // No auto-login - check for existing session only
+
 
         const { data: { session } } = await auth.getSession();
         setSession(session);
@@ -123,25 +73,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const profile = await fetchUserProfile(baseUser.id);
           setUser({ ...baseUser, ...profile });
         } else {
-          // Keep auto-assigned users when in platform defaults
-          if (Platform.OS === 'android') {
-            const seededUser = { id: '00000000-0000-0000-0000-000000000004', email: 'user4@currijobs.com', created_at: new Date().toISOString() } as User;
-            const profile = await fetchUserProfile(seededUser.id);
-            setUser({ ...seededUser, ...profile });
-            const token = await registerForPushNotificationsAsync();
-            if (token) await saveExpoPushToken(seededUser.id, token);
-          } else if (Platform.OS === 'ios') {
-            const isPad = (Platform as any).isPad === true;
-            const desiredId = isPad ? '00000000-0000-0000-0000-000000000003' : '00000000-0000-0000-0000-000000000002';
-            const desiredEmail = isPad ? 'user3@currijobs.com' : 'user2@currijobs.com';
-            const seededUser = { id: desiredId, email: desiredEmail, created_at: new Date().toISOString() } as User;
-            const profile = await fetchUserProfile(seededUser.id);
-            setUser({ ...seededUser, ...profile });
-            const token = await registerForPushNotificationsAsync();
-            if (token) await saveExpoPushToken(seededUser.id, token);
-          } else {
-            setUser(null);
-          }
+          // No auto-login - user must manually log in
+          setUser(null);
         }
         setLoading(false);
       }
