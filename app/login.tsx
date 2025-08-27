@@ -13,10 +13,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
 import { useLocalization } from '../contexts/LocalizationContext';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('albmunmu@gmail.com');
@@ -25,11 +24,8 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const passwordInputRef = useRef<TextInput>(null);
   const { signIn } = useAuth();
-  const { theme } = useTheme();
   const { t } = useLocalization();
   const router = useRouter();
-  
-  const loginImage = require('../assets/login.png');
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -49,58 +45,51 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      {/* Header Section with Image */}
+    <View style={styles.container}>
+      {/* Header with Image */}
       <View style={styles.headerSection}>
-        <Image source={loginImage} style={styles.headerImage} resizeMode="cover" />
+        <Image 
+          source={require('../assets/login.png')} 
+          style={styles.headerImage} 
+          resizeMode="cover"
+        />
       </View>
 
-      {/* Main Content */}
-      <View style={styles.content}>
-        {/* Welcome Message */}
+      {/* Content Section */}
+      <View style={styles.contentSection}>
+        {/* Welcome Text */}
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeTitle}>
-            {t('welcomeToCurriJobs') || 'Bienvenido a CurriJobs'}
+            Bienvenido a CurriJobs
           </Text>
           <Text style={styles.welcomeSubtitle}>
-            {t('connectingWorkersAndClients') || 'Conectando trabajadores y clientes de confianza.'}
+            Conectando trabajadores y clientes de confianza.
           </Text>
         </View>
 
-        {/* Login Form */}
-        <View style={styles.formContainer}>
+        {/* Form */}
+        <View style={styles.formSection}>
           {/* Email Input */}
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder={t('email') || 'Email'}
-              placeholderTextColor="#9CA3AF"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              returnKeyType="next"
-              onSubmitEditing={() => passwordInputRef.current?.focus()}
-              blurOnSubmit={false}
-            />
-          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#9CA3AF"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
 
           {/* Password Input */}
-          <View style={styles.inputContainer}>
+          <View style={styles.passwordContainer}>
             <TextInput
               ref={passwordInputRef}
               style={styles.input}
-              placeholder={t('password') || 'Password'}
+              placeholder="Password"
               placeholderTextColor="#9CA3AF"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
-              returnKeyType="done"
-              onSubmitEditing={handleLogin}
-              blurOnSubmit={true}
             />
             <TouchableOpacity
               style={styles.passwordToggle}
@@ -119,7 +108,7 @@ export default function LoginScreen() {
             disabled={loading}
           >
             <Text style={styles.loginButtonText}>
-              {loading ? (t('loggingIn') || 'Iniciando sesión...') : (t('login') || 'Iniciar sesión')}
+              {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </Text>
           </TouchableOpacity>
 
@@ -127,48 +116,47 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={styles.createAccountButton}
             onPress={() => router.push('/register')}
-            disabled={loading}
           >
             <Text style={styles.createAccountButtonText}>
-              {t('createAccount') || 'Crear cuenta'}
+              Crear cuenta
             </Text>
           </TouchableOpacity>
 
           {/* Separator */}
           <View style={styles.separator}>
             <View style={styles.separatorLine} />
-            <Text style={styles.separatorText}>{t('or') || 'Or'}</Text>
+            <Text style={styles.separatorText}>Or</Text>
             <View style={styles.separatorLine} />
           </View>
 
-          {/* Social Login Buttons (Placeholder for now) */}
+          {/* Social Buttons */}
           <TouchableOpacity style={styles.socialButton}>
             <Text style={styles.socialButtonText}>
-              {t('continueWithGoogle') || 'Continuar con Google'}
+              Continuar con Google
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.socialButton}>
             <Text style={styles.socialButtonText}>
-              {t('continueWithApple') || 'Continuar con Apple'}
+              Continuar con Apple
             </Text>
           </TouchableOpacity>
 
-          {/* Footer Links */}
-          <View style={styles.footerLinks}>
+          {/* Footer */}
+          <View style={styles.footer}>
             <TouchableOpacity>
               <Text style={styles.forgotPasswordText}>
-                {t('forgotPassword') || '¿Olvidaste tu contraseña?'}
+                ¿Olvidaste tu contraseña?
               </Text>
             </TouchableOpacity>
             
             <Text style={styles.termsText}>
-              {t('termsAndPrivacy') || 'Al registrarte, aceptas nuestras Términos y Política de privacidad'}
+              Al registrarte, aceptas nuestras Términos y Política de privacidad
             </Text>
           </View>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -185,7 +173,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  content: {
+  contentSection: {
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 32,
@@ -207,12 +195,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  formContainer: {
+  formSection: {
     flex: 1,
-  },
-  inputContainer: {
-    marginBottom: 16,
-    position: 'relative',
   },
   input: {
     borderWidth: 1,
@@ -222,6 +206,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#FFFFFF',
     color: '#1F2937',
+    marginBottom: 16,
+  },
+  passwordContainer: {
+    position: 'relative',
+    marginBottom: 16,
   },
   passwordToggle: {
     position: 'absolute',
@@ -237,7 +226,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 8,
     marginBottom: 12,
   },
   loginButtonText: {
@@ -287,7 +275,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  footerLinks: {
+  footer: {
     marginTop: 24,
     alignItems: 'center',
   },
