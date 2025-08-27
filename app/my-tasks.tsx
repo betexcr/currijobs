@@ -31,10 +31,28 @@ const chambitoIcon = require('../assets/chambito.png');
 
 export default function MyTasksScreen() {
   const router = useRouter();
-  const authContext = useAuth();
-  const user = authContext?.user;
   const { theme } = useTheme();
   const { t } = useLocalization();
+  
+  // Try to get auth context safely
+  let authContext;
+  let user;
+  try {
+    authContext = useAuth();
+    user = authContext?.user;
+  } catch (error) {
+    console.log('Auth context not available yet, showing loading...');
+    // If useAuth fails, show loading state
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.loadingContainer}>
+          <Text style={[styles.loadingText, { color: theme.colors.text }]}>
+            {t('loading') || 'Loading...'}
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   // Show loading state if auth is still loading
   if (authContext?.loading) {
