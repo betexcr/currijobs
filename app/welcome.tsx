@@ -96,7 +96,7 @@ export default function WelcomeScreen() {
 
   if (!shouldShowLogin) {
     return (
-      <View style={[styles.container, { backgroundColor: '#e3923d' }]}>
+      <View style={[styles.container, { backgroundColor: '#f8d384' }]}>
         {/* Splash Image - Fit Width */}
         <View style={styles.splashWrapper}>
           <Image

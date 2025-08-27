@@ -24,7 +24,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ visible }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e3923d',
+    backgroundColor: '#f8d384',
     justifyContent: 'center',
     alignItems: 'center',
   },

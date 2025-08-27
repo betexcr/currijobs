@@ -776,6 +776,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 40,
+    backgroundColor: '#f8d384',
+    flex: 1,
   },
   modalOverlay: {
     flex: 1,
