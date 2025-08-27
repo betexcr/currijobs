@@ -34,28 +34,12 @@ export default function MyTasksScreen() {
   const { theme } = useTheme();
   const { t } = useLocalization();
   
-  // Try to get auth context safely
-  let authContext;
-  let user;
-  try {
-    authContext = useAuth();
-    user = authContext?.user;
-  } catch (error) {
-    console.log('Auth context not available yet, showing loading...');
-    // If useAuth fails, show loading state
-    return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingText, { color: theme.colors.text }]}>
-            {t('loading') || 'Loading...'}
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
-  // Show loading state if auth is still loading
-  if (authContext?.loading) {
+  // Get auth context with fallback
+  const authContext = useAuth();
+  const user = authContext?.user;
+  
+  // Show loading state if auth is still loading or not available
+  if (!authContext || authContext.loading) {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.loadingContainer}>
@@ -100,6 +84,9 @@ export default function MyTasksScreen() {
   const [myTasks, setMyTasks] = useState<Task[]>([]);
   const openMyTasks = useMemo(() => myTasks.filter(t => t.status === 'open'), [myTasks]);
   
+  // Assigned to me (worker side)
+  const [assignedToMe, setAssignedToMe] = useState<Task[]>([]);
+  
   // Filtered tasks for map based on active filter
   const filteredMapTasks = useMemo(() => {
     switch (activeFilter) {
@@ -113,9 +100,6 @@ export default function MyTasksScreen() {
         return [...openMyTasks, ...assignedToMe];
     }
   }, [openMyTasks, assignedToMe, activeFilter]);
-  
-  // Assigned to me (worker side)
-  const [assignedToMe, setAssignedToMe] = useState<Task[]>([]);
   const [offerCounts, setOfferCounts] = useState<Record<string, number>>({});
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [cancelModalTask, setCancelModalTask] = useState<Task | null>(null);
