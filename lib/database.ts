@@ -345,9 +345,15 @@ export const createTask = async (taskData: CreateTaskData, userId: string): Prom
           return null; // Don't create task if Supabase fails
         }
         
+        console.log('Supabase returned data:', JSON.stringify(data, null, 2));
+        console.log('Data type:', typeof data);
+        console.log('Data keys:', Object.keys(data || {}));
+        
         const validatedTask = safeValidateTask(data);
         if (!validatedTask.success) {
           console.error('Supabase returned invalid task data');
+          console.error('Validation errors:', validatedTask.error);
+          console.error('Received data:', JSON.stringify(data, null, 2));
           return null;
         }
         
