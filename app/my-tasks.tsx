@@ -37,7 +37,7 @@ export default function MyTasksScreen() {
   const mapRef = useRef<MapView>(null);
   
   // Filter state
-  const [activeFilter, setActiveFilter] = useState<'all' | 'nearby' | 'in_progress' | 'completed'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'in_progress' | 'completed'>('all');
   
   const NIGHT_MAP_STYLE: any[] = [
     { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
@@ -67,6 +67,21 @@ export default function MyTasksScreen() {
 
   const [myTasks, setMyTasks] = useState<Task[]>([]);
   const openMyTasks = useMemo(() => myTasks.filter(t => t.status === 'open'), [myTasks]);
+  
+  // Filtered tasks for map based on active filter
+  const filteredMapTasks = useMemo(() => {
+    switch (activeFilter) {
+      case 'all':
+        return [...openMyTasks, ...assignedToMe];
+      case 'in_progress':
+        return [...openMyTasks.filter(t => t.status === 'in_progress'), ...assignedToMe];
+      case 'completed':
+        return [...openMyTasks.filter(t => t.status === 'completed'), ...assignedToMe.filter(t => t.status === 'completed')];
+      default:
+        return [...openMyTasks, ...assignedToMe];
+    }
+  }, [openMyTasks, assignedToMe, activeFilter]);
+  
   // Assigned to me (worker side)
   const [assignedToMe, setAssignedToMe] = useState<Task[]>([]);
   const [offerCounts, setOfferCounts] = useState<Record<string, number>>({});
@@ -181,7 +196,7 @@ export default function MyTasksScreen() {
   const handleMarkerPressWithExpand = (task: Task) => {
     // Expand when bundled
     const proximityKm = computeProximityKm();
-    const nearby = myTasks.filter(t => {
+    const nearby = filteredMapTasks.filter(t => {
       if (!t.latitude || !t.longitude || !task.latitude || !task.longitude) return false;
       const dLat = (t.latitude - task.latitude) * Math.PI / 180;
       const dLon = (t.longitude - task.longitude) * Math.PI / 180;
@@ -211,7 +226,6 @@ export default function MyTasksScreen() {
   // Filter chips data
   const filterChips = [
     { key: 'all', label: t('all') || 'Todos' },
-    { key: 'nearby', label: t('nearby') || 'Cercanos' },
     { key: 'in_progress', label: t('inProgressStatus') || 'En progreso' },
     { key: 'completed', label: t('completedStatus') || 'Completados' },
   ];
@@ -283,7 +297,7 @@ export default function MyTasksScreen() {
                 tileSize={256}
               />
             )}
-            {openMyTasks.map((task) => (
+            {filteredMapTasks.map((task) => (
               <Marker
                 key={task.id}
                 coordinate={{
