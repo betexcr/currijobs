@@ -109,6 +109,10 @@ export default function MyTasksScreen() {
     latitude: number;
     longitude: number;
   } | null>(null);
+  
+  // State for highlighting and focusing tasks from map
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     (async () => {
@@ -236,8 +240,53 @@ export default function MyTasksScreen() {
       setIsExpanded(true);
       return;
     }
+    
+    // Highlight and focus the task in the lower UI
+    setHighlightedTaskId(task.id);
+    
+    // Scroll to the task after a short delay to ensure the UI has updated
+    setTimeout(() => {
+      scrollToTask(task.id);
+    }, 100);
+    
     // Fall back to original behavior
     handleTaskPress(task);
+  };
+  
+  const scrollToTask = (taskId: string) => {
+    // Find the task in either assignedToMe or openMyTasks
+    const task = [...assignedToMe, ...openMyTasks].find(t => t.id === taskId);
+    if (!task) return;
+    
+    // Calculate approximate position based on task position in the list
+    const assignedIndex = assignedToMe.findIndex(t => t.id === taskId);
+    const openIndex = openMyTasks.findIndex(t => t.id === taskId);
+    
+    let scrollPosition = 0;
+    const headerHeight = 120; // Approximate header height
+    const mapHeight = 300; // Approximate map height
+    const sectionHeaderHeight = 60; // Approximate section header height
+    const taskCardHeight = 200; // Approximate task card height
+    
+    if (assignedIndex >= 0) {
+      // Task is in "Assigned to Me" section
+      scrollPosition = headerHeight + mapHeight + sectionHeaderHeight + (assignedIndex * taskCardHeight);
+    } else if (openIndex >= 0) {
+      // Task is in "My Publications" section
+      const assignedSectionHeight = assignedToMe.length > 0 ? (assignedToMe.length * taskCardHeight + sectionHeaderHeight) : 0;
+      scrollPosition = headerHeight + mapHeight + assignedSectionHeight + sectionHeaderHeight + (openIndex * taskCardHeight);
+    }
+    
+    // Scroll to the task
+    scrollViewRef.current?.scrollTo({
+      y: scrollPosition,
+      animated: true
+    });
+    
+    // Clear highlight after 3 seconds
+    setTimeout(() => {
+      setHighlightedTaskId(null);
+    }, 3000);
   };
 
   // Filter chips data
@@ -283,7 +332,12 @@ export default function MyTasksScreen() {
         </View>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} nestedScrollEnabled>
+      <ScrollView 
+        ref={scrollViewRef}
+        style={{ flex: 1 }} 
+        contentContainerStyle={{ paddingBottom: 24 }} 
+        nestedScrollEnabled
+      >
         {/* Map View */}
         <View style={styles.mapContainer}>
           <MapView
@@ -338,7 +392,13 @@ export default function MyTasksScreen() {
               <Text style={styles.sectionTitle}>Asignadas a mí</Text>
             </View>
             {assignedToMe.map((task) => (
-              <View key={task.id} style={styles.taskCard}>
+              <View 
+                key={task.id} 
+                style={[
+                  styles.taskCard,
+                  highlightedTaskId === task.id && styles.highlightedTaskCard
+                ]}
+              >
                 <View style={styles.taskCardHeader}>
                   <View style={styles.taskCategoryContainer}>
                     <Text style={styles.taskCategoryIcon}>{getCategoryIcon(task.category)}</Text>
@@ -386,7 +446,13 @@ export default function MyTasksScreen() {
           </View>
           {openMyTasks.length > 0 ? (
             openMyTasks.map((task) => (
-              <View key={task.id} style={styles.taskCard}>
+              <View 
+                key={task.id} 
+                style={[
+                  styles.taskCard,
+                  highlightedTaskId === task.id && styles.highlightedTaskCard
+                ]}
+              >
                 <View style={styles.taskCardHeader}>
                   <View style={styles.taskCategoryContainer}>
                     <Text style={styles.taskCategoryIcon}>{getCategoryIcon(task.category)}</Text>
@@ -660,6 +726,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  highlightedTaskCard: {
+    borderWidth: 3,
+    borderColor: '#FBC02D',
+    shadowColor: '#FBC02D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    transform: [{ scale: 1.02 }],
   },
   taskCardHeader: {
     flexDirection: 'row',
