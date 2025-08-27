@@ -38,14 +38,18 @@ export default function WelcomeScreen() {
   useEffect(() => {
     // Start splash screen immediately
     setSplashStarted(true);
-    
-    // Start 3-second timer after splash is showing
-    const timer = setTimeout(() => {
-      setSplashTimerComplete(true);
-    }, 3000);
-
-    return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    // Start 3-second timer only after image is loaded
+    if (imageLoaded && splashStarted) {
+      const timer = setTimeout(() => {
+        setSplashTimerComplete(true);
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [imageLoaded, splashStarted]);
 
   useEffect(() => {
     try {
@@ -70,8 +74,8 @@ export default function WelcomeScreen() {
     }
   }, [user, loading]);
 
-  // Show splash screen immediately, then login after 3 seconds
-  const shouldShowSplash = splashStarted && !splashTimerComplete;
+  // Show splash screen when image is loaded and timer is active
+  const shouldShowSplash = splashStarted && imageLoaded && !splashTimerComplete;
   const shouldShowLogin = splashTimerComplete;
 
   const handleLogin = async () => {
@@ -99,8 +103,8 @@ export default function WelcomeScreen() {
     router.replace('/onboarding');
   };
 
-  // Show splash screen immediately when component mounts
-  if (shouldShowSplash) {
+  // Show splash screen only when image is loaded and timer is active
+  if (shouldShowSplash && imageLoaded) {
     return (
       <View style={[styles.container, { backgroundColor: '#f8d384' }]}>
         {/* Splash Image - Fit Width */}
@@ -116,12 +120,17 @@ export default function WelcomeScreen() {
     );
   }
 
-  // Show loading state while splash is not started yet
-  if (!splashStarted) {
+  // Show loading state while splash is not started yet or image is loading
+  if (!splashStarted || !imageLoaded) {
     return (
-      <View style={[styles.container, { backgroundColor: '#f8d384' }]}>
+      <View style={[styles.container, { backgroundColor: 'transparent' }]}>
         <View style={styles.splashWrapper}>
-          <View style={styles.loadingPlaceholder} />
+          <Image
+            source={splashSource}
+            style={[styles.splashImage, { height: splashHeight }]}
+            resizeMode="contain"
+            onLoad={() => setImageLoaded(true)}
+          />
         </View>
       </View>
     );
