@@ -28,6 +28,7 @@ export default function WelcomeScreen() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [splashTimerComplete, setSplashTimerComplete] = useState(false);
+  const [splashStarted, setSplashStarted] = useState(false);
   // User input fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,7 +36,10 @@ export default function WelcomeScreen() {
   const [splashHeight, setSplashHeight] = useState(height);
 
   useEffect(() => {
-    // Start 3-second timer immediately, don't wait for image
+    // Start splash screen immediately
+    setSplashStarted(true);
+    
+    // Start 3-second timer after splash is showing
     const timer = setTimeout(() => {
       setSplashTimerComplete(true);
     }, 3000);
@@ -66,7 +70,8 @@ export default function WelcomeScreen() {
     }
   }, [user, loading]);
 
-  // Show login screen after 3 seconds, regardless of image load status
+  // Show splash screen immediately, then login after 3 seconds
+  const shouldShowSplash = splashStarted && !splashTimerComplete;
   const shouldShowLogin = splashTimerComplete;
 
   const handleLogin = async () => {
@@ -94,7 +99,8 @@ export default function WelcomeScreen() {
     router.replace('/onboarding');
   };
 
-  if (!shouldShowLogin) {
+  // Show splash screen immediately when component mounts
+  if (shouldShowSplash) {
     return (
       <View style={[styles.container, { backgroundColor: '#f8d384' }]}>
         {/* Splash Image - Fit Width */}
@@ -105,6 +111,17 @@ export default function WelcomeScreen() {
             resizeMode="contain"
             onLoad={() => setImageLoaded(true)}
           />
+        </View>
+      </View>
+    );
+  }
+
+  // Show loading state while splash is not started yet
+  if (!splashStarted) {
+    return (
+      <View style={[styles.container, { backgroundColor: '#f8d384' }]}>
+        <View style={styles.splashWrapper}>
+          <View style={styles.loadingPlaceholder} />
         </View>
       </View>
     );
@@ -195,6 +212,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingPlaceholder: {
+    width: 200,
+    height: 200,
+    backgroundColor: 'transparent',
   },
   loginContainer: {
     flex: 1,
