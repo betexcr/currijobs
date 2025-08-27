@@ -35,6 +35,19 @@ export default function MyTasksScreen() {
   const user = authContext?.user;
   const { theme } = useTheme();
   const { t } = useLocalization();
+
+  // Show loading state if auth is still loading
+  if (authContext?.loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.loadingContainer}>
+          <Text style={[styles.loadingText, { color: theme.colors.text }]}>
+            {t('loading') || 'Loading...'}
+          </Text>
+        </View>
+      </View>
+    );
+  }
   const mapRef = useRef<MapView>(null);
   
   // Filter state
@@ -764,6 +777,15 @@ const styles = StyleSheet.create({
   createButtonText: {
     color: 'white',
     textAlign: 'center',
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
     fontWeight: '500',
   },
 });
