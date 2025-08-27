@@ -16,21 +16,17 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  session: null,
+  loading: true,
+  signIn: async () => ({ error: new Error('Auth not initialized') }),
+  signUp: async () => ({ error: new Error('Auth not initialized') }),
+  signOut: async () => {},
+});
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    // Return a default context instead of throwing an error
-    return {
-      user: null,
-      session: null,
-      loading: true,
-      signIn: async () => ({ error: new Error('Auth not initialized') }),
-      signUp: async () => ({ error: new Error('Auth not initialized') }),
-      signOut: async () => {},
-    };
-  }
   return context;
 };
 
