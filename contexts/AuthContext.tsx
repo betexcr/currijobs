@@ -58,16 +58,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const desiredEmail = isPad ? 'user3@currijobs.com' : 'user2@currijobs.com';
         const seededUser = { id: desiredId, email: desiredEmail, created_at: new Date().toISOString() } as User;
         
-        // TEMPORARY: Force welcome screen for testing
-        // Comment out the next 3 lines to see splash screen and onboarding
-        // setUser(seededUser);
-        // setSession(null);
-        // setLoading(false);
-        
-        // Instead, set user to null to show welcome screen
-        setUser(null);
+        // Show splash screen and onboarding flow
+        // Comment out the next 3 lines to force welcome screen for testing
+        setUser(seededUser);
         setSession(null);
         setLoading(false);
+        
+        // Uncomment the next 3 lines to show welcome screen instead of splash
+        // setUser(null);
+        // setSession(null);
+        // setLoading(false);
           // Background enrich (non-blocking)
           (async () => {
             try {
