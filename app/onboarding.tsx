@@ -1,21 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  ScrollView,
   Image,
+  Animated,
+  ImageSourcePropType,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useTheme } from '../contexts/ThemeContext';
 import { useLocalization } from '../contexts/LocalizationContext';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import type { LocalizationStrings } from '../lib/localization';
 
 const { width, height } = Dimensions.get('window');
 
-const onboardingSteps = [
+const onboardingSteps: Array<{
+  id: number;
+  title: keyof LocalizationStrings;
+  description: keyof LocalizationStrings;
+  image: ImageSourcePropType;
+}> = [
   {
     id: 1,
     title: 'onboardingStep1Title',
@@ -44,15 +50,16 @@ const onboardingSteps = [
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { theme } = useTheme();
   const { t } = useLocalization();
   const [currentStep, setCurrentStep] = useState(0);
+  const translateX = useRef(new Animated.Value(0)).current;
+  const panRef = useRef(null);
 
   // No need to preload images when using require() - they're bundled
 
   const handleNext = () => {
     if (currentStep < onboardingSteps.length - 1) {
-      setCurrentStep(currentStep + 1);
+      goToStep(currentStep + 1);
     } else {
       handleFinish();
     }
@@ -60,15 +67,47 @@ export default function OnboardingScreen() {
 
   const handlePrevious = () => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+      goToStep(currentStep - 1);
     }
+  };
+
+  const goToStep = (step: number) => {
+    setCurrentStep(step);
+    Animated.spring(translateX, {
+      toValue: -step * width,
+      useNativeDriver: true,
+    }).start();
   };
 
   const handleFinish = () => {
     router.replace('/');
   };
 
-  const currentStepData = onboardingSteps[currentStep];
+  const onGestureEvent = Animated.event(
+    [{ nativeEvent: { translationX: translateX } }],
+    { useNativeDriver: true }
+  );
+
+  const onHandlerStateChange = (event: { nativeEvent: { state: number; translationX: number } }) => {
+    if (event.nativeEvent.state === State.END) {
+      const { translationX } = event.nativeEvent;
+      const threshold = width * 0.3;
+
+      if (translationX > threshold && currentStep > 0) {
+        // Swipe right - go to previous
+        goToStep(currentStep - 1);
+      } else if (translationX < -threshold && currentStep < onboardingSteps.length - 1) {
+        // Swipe left - go to next
+        goToStep(currentStep + 1);
+      } else {
+        // Return to current position
+        Animated.spring(translateX, {
+          toValue: -currentStep * width,
+          useNativeDriver: true,
+        }).start();
+      }
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -90,35 +129,46 @@ export default function OnboardingScreen() {
         </View>
       </View>
 
-      {/* Step Content */}
-      <ScrollView 
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
+      {/* Swipeable Content */}
+      <PanGestureHandler
+        ref={panRef}
+        onGestureEvent={onGestureEvent}
+        onHandlerStateChange={onHandlerStateChange}
       >
-        <View style={styles.stepContainer}>
-          {/* Illustration */}
-          <View style={styles.imageContainer}>
-            <Image
-              source={currentStepData.image}
-              style={styles.stepImage}
-              resizeMode="contain"
-              fadeDuration={0}
-            />
-          </View>
-          
-          {/* Text Content */}
-          <View style={styles.textContainer}>
-            <Text style={styles.stepTitle}>
-              {t(currentStepData.title)}
-            </Text>
-            
-            <Text style={styles.stepDescription}>
-              {t(currentStepData.description)}
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
+        <Animated.View 
+          style={[
+            styles.content,
+            {
+              transform: [{ translateX }],
+            }
+          ]}
+        >
+          {onboardingSteps.map((step) => (
+            <View key={step.id} style={styles.stepContainer}>
+              {/* Illustration */}
+              <View style={styles.imageContainer}>
+                <Image
+                  source={step.image}
+                  style={styles.stepImage}
+                  resizeMode="contain"
+                  fadeDuration={0}
+                />
+              </View>
+              
+              {/* Text Content */}
+              <View style={styles.textContainer}>
+                <Text style={styles.stepTitle}>
+                  {t(step.title)}
+                </Text>
+                
+                <Text style={styles.stepDescription}>
+                  {t(step.description)}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </Animated.View>
+      </PanGestureHandler>
 
       {/* Navigation Buttons */}
       <View style={styles.navigationContainer}>
@@ -186,14 +236,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  contentContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 20,
+    flexDirection: 'row',
+    width: width * onboardingSteps.length,
   },
   stepContainer: {
+    width: width,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
     paddingVertical: 20,
   },
   imageContainer: {
