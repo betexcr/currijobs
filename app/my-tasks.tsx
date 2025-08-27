@@ -104,6 +104,7 @@ export default function MyTasksScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [cancelModalTask, setCancelModalTask] = useState<Task | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [cancelOwnerModalTask, setCancelOwnerModalTask] = useState<Task | null>(null);
   const [newTaskLocation, setNewTaskLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -416,11 +417,7 @@ export default function MyTasksScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.cancelButton}
-                    onPress={async () => {
-                      const ok = await cancelTaskByOwner(task.id as string, user!.id);
-                      if (!ok) { Alert.alert(t('error') || 'Error', 'Could not cancel task'); return; }
-                      await fetchMyTasks();
-                    }}
+                    onPress={() => setCancelOwnerModalTask(task)}
                   >
                     <Text style={styles.cancelButtonText}>Cancelar</Text>
                   </TouchableOpacity>
@@ -493,6 +490,50 @@ export default function MyTasksScreen() {
                 }}
               >
                 <Text style={styles.createButtonText}>Confirm Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Cancel Owner Task Confirmation Modal */}
+      <Modal
+        visible={!!cancelOwnerModalTask}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setCancelOwnerModalTask(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}> 
+            <Text style={[styles.modalTitle, { color: theme.colors.text.primary }]}>
+              {t('confirmCancellation') || 'Confirmar cancelación'}
+            </Text>
+            <Text style={[styles.modalText, { color: theme.colors.text.secondary }]}>
+              {t('cancelTaskConfirmation') || '¿Estás seguro de que quieres cancelar esta tarea? Esta acción no se puede deshacer.'}
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.modalCancelButton]} 
+                onPress={() => setCancelOwnerModalTask(null)}
+              >
+                <Text style={styles.modalCancelButtonText}>{t('cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.createButton]}
+                onPress={async () => {
+                  if (!cancelOwnerModalTask || !user) return;
+                  const ok = await cancelTaskByOwner(cancelOwnerModalTask.id as string, user.id);
+                  if (!ok) { 
+                    Alert.alert(t('error') || 'Error', t('couldNotCancelTask') || 'Could not cancel task'); 
+                    return; 
+                  }
+                  setCancelOwnerModalTask(null);
+                  await fetchMyTasks();
+                }}
+              >
+                <Text style={styles.createButtonText}>
+                  {t('confirmCancel') || 'Confirmar'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -789,6 +830,12 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  modalText: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 20,
+    textAlign: 'center',
   },
 });
 

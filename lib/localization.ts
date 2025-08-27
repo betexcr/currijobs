@@ -88,6 +88,10 @@ export interface LocalizationStrings {
   clearSearch: string;
   noResultsFound: string;
   nearby: string;
+  confirmCancellation: string;
+  cancelTaskConfirmation: string;
+  couldNotCancelTask: string;
+  confirmCancel: string;
   
   // AI Recommendations
   aiRecommendations: string;
@@ -370,6 +374,10 @@ const localizations: Record<Language, LocalizationStrings> = {
     clearSearch: 'Limpiar búsqueda',
     noResultsFound: 'No se encontraron resultados',
     nearby: 'Cercanos',
+    confirmCancellation: 'Confirmar cancelación',
+    cancelTaskConfirmation: '¿Estás seguro de que quieres cancelar esta tarea? Esta acción no se puede deshacer.',
+    couldNotCancelTask: 'No se pudo cancelar la tarea',
+    confirmCancel: 'Confirmar',
     
     // AI Recommendations
     aiRecommendations: 'Recomendaciones IA',
@@ -650,6 +658,10 @@ const localizations: Record<Language, LocalizationStrings> = {
     clearSearch: 'Clear search',
     noResultsFound: 'No results found',
     nearby: 'Nearby',
+    confirmCancellation: 'Confirm Cancellation',
+    cancelTaskConfirmation: 'Are you sure you want to cancel this task? This action cannot be undone.',
+    couldNotCancelTask: 'Could not cancel task',
+    confirmCancel: 'Confirm',
     
     // AI Recommendations
     aiRecommendations: 'AI Recommendations',
@@ -923,6 +935,10 @@ const localizations: Record<Language, LocalizationStrings> = {
     clearSearch: '清除搜索',
     noResultsFound: '未找到结果',
     nearby: '附近',
+    confirmCancellation: '确认取消',
+    cancelTaskConfirmation: '您确定要取消此任务吗？此操作无法撤销。',
+    couldNotCancelTask: '无法取消任务',
+    confirmCancel: '确认',
     
     // AI Recommendations
     aiRecommendations: 'AI推荐',
