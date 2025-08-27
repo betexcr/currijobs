@@ -26,15 +26,24 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
       });
 
-      // Get initial session
-      final session = SupabaseManager.currentSession;
-      _session = session;
-      _user = session?.user;
+      // For development, start logged out
+      await _clearSession();
+      
       _loading = false;
       notifyListeners();
     } catch (e) {
       _loading = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> _clearSession() async {
+    try {
+      await SupabaseManager.signOut();
+      _user = null;
+      _session = null;
+    } catch (e) {
+      // Ignore errors if no session exists
     }
   }
 

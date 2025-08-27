@@ -87,6 +87,7 @@ export interface LocalizationStrings {
   filterByCategory: string;
   clearSearch: string;
   noResultsFound: string;
+  nearby: string;
   
   // AI Recommendations
   aiRecommendations: string;
@@ -368,6 +369,7 @@ const localizations: Record<Language, LocalizationStrings> = {
     filterByCategory: 'Filtrar por categoría',
     clearSearch: 'Limpiar búsqueda',
     noResultsFound: 'No se encontraron resultados',
+    nearby: 'Cercanos',
     
     // AI Recommendations
     aiRecommendations: 'Recomendaciones IA',
@@ -647,6 +649,7 @@ const localizations: Record<Language, LocalizationStrings> = {
     filterByCategory: 'Filter by category',
     clearSearch: 'Clear search',
     noResultsFound: 'No results found',
+    nearby: 'Nearby',
     
     // AI Recommendations
     aiRecommendations: 'AI Recommendations',
@@ -919,6 +922,7 @@ const localizations: Record<Language, LocalizationStrings> = {
     filterByCategory: '按类别筛选',
     clearSearch: '清除搜索',
     noResultsFound: '未找到结果',
+    nearby: '附近',
     
     // AI Recommendations
     aiRecommendations: 'AI推荐',

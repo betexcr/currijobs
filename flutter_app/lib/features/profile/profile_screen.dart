@@ -32,6 +32,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final authProvider = context.read<AuthProvider>();
       if (authProvider.user != null) {
         final profile = await _dbService.fetchUserProfile(authProvider.user!.id);
+        
+        if (profile == null) {
+          // User profile doesn't exist, log out automatically
+          debugPrint('User profile not found, logging out user');
+          await authProvider.signOut();
+          if (mounted) {
+            context.go('/login');
+          }
+          return;
+        }
+        
         setState(() {
           _userProfile = profile;
           _isLoading = false;

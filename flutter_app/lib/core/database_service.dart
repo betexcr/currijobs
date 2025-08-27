@@ -108,7 +108,13 @@ class DatabaseService {
           .from('profiles')
           .select()
           .eq('id', userId)
-          .single();
+          .maybeSingle();
+
+      if (response == null) {
+        debugPrint('User profile not found for userId: $userId');
+        // Don't create a profile automatically - let the user go through proper registration
+        return null;
+      }
 
       return UserProfile.fromJson(response);
     } catch (e) {
@@ -351,6 +357,44 @@ class DatabaseService {
     } catch (e) {
       debugPrint('Error getting user by email: $e');
       return null;
+    }
+  }
+
+  // Create profile for user if it doesn't exist
+  Future<bool> createProfileIfNotExists(String userId, String email) async {
+    try {
+      print('🔍 Checking if profile exists for user: $userId');
+      
+      // Check if profile already exists
+      final existing = await SupabaseManager.client
+          .from('profiles')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+      
+      if (existing != null) {
+        print('✅ Profile already exists for user: $userId');
+        return true; // Profile already exists
+      }
+
+      print('📝 Creating new profile for user: $userId (${email})');
+      
+      // Create new profile
+      await SupabaseManager.client
+          .from('profiles')
+          .insert({
+            'id': userId,
+            'email': email,
+            'full_name': email.split('@')[0], // Use email prefix as name
+            'created_at': DateTime.now().toIso8601String(),
+          });
+      
+      print('✅ Profile created successfully for user: $userId');
+      return true;
+    } catch (e) {
+      print('❌ Error creating profile: $e');
+      debugPrint('Error creating profile: $e');
+      return false;
     }
   }
 }

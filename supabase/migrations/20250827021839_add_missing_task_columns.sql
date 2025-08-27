@@ -1,6 +1,3 @@
--- Fix missing deadline column in tasks table
--- Run this in your Supabase SQL Editor
-
 -- Add missing columns to tasks table
 ALTER TABLE tasks 
 ADD COLUMN IF NOT EXISTS deadline TIMESTAMP WITH TIME ZONE,
@@ -13,7 +10,3 @@ ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITH TIME ZONE;
 
 -- Add index for deadline column
 CREATE INDEX IF NOT EXISTS idx_tasks_deadline ON tasks(deadline);
-
--- Success message
-SELECT 'Deadline column and other missing columns added successfully!' as status;
-

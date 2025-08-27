@@ -23,7 +23,8 @@
     "test:watch": "echo 'Tests temporarily disabled - focusing on manual testing'",
     "ci": "npm run test",
     "db:cleanup": "node scripts/cleanup-tasks.js",
-    "db:seed-demo": "node scripts/seed-demo-tasks.js"
+    "db:seed-demo": "node scripts/seed-demo-tasks.js",
+    "flutter": "cd ./flutter_app && flutter run -d 8EA78D35-B947-4D0E-951C-62CB53FEF1E8 && cd .."
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

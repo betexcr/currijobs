@@ -21,6 +21,8 @@ import 'features/settings/settings_screen.dart';
 import 'features/wallet/wallet_screen.dart';
 import 'features/rank/rank_screen.dart';
 import 'features/welcome_screen.dart';
+import 'features/main_layout.dart';
+import 'features/create_task/create_task_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +46,7 @@ class _CurrijobsAppState extends State<CurrijobsApp> {
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
       GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
+      GoRoute(path: '/main', builder: (context, state) => const MainLayout()),
       GoRoute(path: '/tasks', builder: (context, state) => const TasksScreen()),
       GoRoute(path: '/my-tasks', builder: (context, state) => const MyTasksScreen()),
       GoRoute(
@@ -73,6 +76,7 @@ class _CurrijobsAppState extends State<CurrijobsApp> {
       GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
       GoRoute(path: '/wallet', builder: (context, state) => const WalletScreen()),
       GoRoute(path: '/rank', builder: (context, state) => const RankScreen()),
+      GoRoute(path: '/create-task', builder: (context, state) => const CreateTaskScreen()),
     ],
     redirect: (context, state) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -86,7 +90,7 @@ class _CurrijobsAppState extends State<CurrijobsApp> {
       }
       
       if (authProvider.isAuthenticated && (loggingIn || location == '/')) {
-        return '/tasks';
+        return '/main';
       }
       
       return null;

@@ -16,8 +16,15 @@ class SupabaseManager {
     return await client.auth.signInWithPassword(email: email, password: password);
   }
 
-  static Future<AuthResponse> signUp(String email, String password) async {
-    return await client.auth.signUp(email: email, password: password);
+    static Future<AuthResponse> signUp(String email, String password) async {
+    return await client.auth.signUp(
+      email: email,
+      password: password,
+      emailRedirectTo: null, // Disable email redirect for mobile apps
+      data: {
+        'email_confirm': false, // Disable email confirmation requirement
+      },
+    );
   }
 
   static Future<void> signOut() async {

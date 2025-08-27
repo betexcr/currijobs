@@ -153,11 +153,11 @@ class UserProfile {
       location: json['location'],
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       totalReviews: json['total_reviews'] ?? 0,
-      completedTasks: json['completed_tasks'] ?? 0,
+      completedTasks: json['completed_tasks'] ?? json['total_jobs'] ?? 0,
       totalEarnings: (json['total_earnings'] as num?)?.toDouble() ?? 0.0,
       walletBalance: (json['wallet_balance'] as num?)?.toDouble() ?? 0.0,
       memberSince: DateTime.parse(json['member_since'] ?? json['created_at']),
-      verified: json['verified'] ?? false,
+      verified: json['is_verified'] ?? json['verified'] ?? false,
       createdAt: DateTime.parse(json['created_at']),
     );
   }
@@ -224,6 +224,26 @@ class Offer {
       'description': description,
       'status': status,
       'created_at': createdAt.toIso8601String(),
+    };
+  }
+}
+
+class CreateOfferData {
+  final String taskId;
+  final double amount;
+  final String message;
+
+  CreateOfferData({
+    required this.taskId,
+    required this.amount,
+    required this.message,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'task_id': taskId,
+      'price': amount,
+      'description': message,
     };
   }
 }

@@ -18,6 +18,14 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Pre-fill with test user credentials
+    _emailController.text = 'albmunmu@gmail.com';
+    _passwordController.text = 'test1234';
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();

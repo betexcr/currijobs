@@ -1,20 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class BottomNavigation extends StatelessWidget {
-  final int currentIndex;
-  final Function(int) onTap;
-
-  const BottomNavigation({
-    super.key,
-    required this.currentIndex,
-    required this.onTap,
-  });
+  const BottomNavigation({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final currentPath = GoRouterState.of(context).uri.path;
+    
+    final navItems = [
+      {'name': 'Map', 'icon': '🗺️', 'route': '/main', 'label': 'Map View'},
+      {'name': 'Tasks', 'icon': '📋', 'route': '/tasks', 'label': 'Task List'},
+      {'name': 'MyTasks', 'icon': '📁', 'route': '/my-tasks', 'label': 'My Tasks'},
+      {'name': 'Profile', 'icon': '👤', 'route': '/profile', 'label': 'Profile'},
+    ];
+
+    bool isActive(String route) {
+      if (route == '/main') {
+        return currentPath == '/main';
+      }
+      return currentPath.startsWith(route);
+    }
+
     return Container(
+      height: 80,
       decoration: BoxDecoration(
         color: Colors.white,
+        border: Border(
+          top: BorderSide(color: const Color(0xFFE0E0E0), width: 1),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
@@ -23,69 +37,43 @@ class BottomNavigation extends StatelessWidget {
           ),
         ],
       ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.home,
-                label: 'Tasks',
-                index: 0,
-                isSelected: currentIndex == 0,
+      child: Row(
+        children: navItems.map((item) {
+          final active = isActive(item['route']!);
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => context.go(item['route']!),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: active ? const Color(0xFF1E3A8A) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      item['icon']!,
+                      style: TextStyle(
+                        fontSize: 24,
+                        color: active ? Colors.white : const Color(0xFF6B7280),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item['label']!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: active ? Colors.white : const Color(0xFF6B7280),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              _buildNavItem(
-                icon: Icons.work,
-                label: 'My Tasks',
-                index: 1,
-                isSelected: currentIndex == 1,
-              ),
-              _buildNavItem(
-                icon: Icons.map,
-                label: 'Map',
-                index: 2,
-                isSelected: currentIndex == 2,
-              ),
-              _buildNavItem(
-                icon: Icons.person,
-                label: 'Profile',
-                index: 3,
-                isSelected: currentIndex == 3,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required int index,
-    required bool isSelected,
-  }) {
-    return GestureDetector(
-      onTap: () => onTap(index),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: isSelected ? const Color(0xFF1E3A8A) : Colors.grey[600],
-            size: 24,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? const Color(0xFF1E3A8A) : Colors.grey[600],
-              fontSize: 12,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             ),
-          ),
-        ],
+          );
+        }).toList(),
       ),
     );
   }

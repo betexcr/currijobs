@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -52,12 +53,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         curve: Curves.easeInOut,
       );
     } else {
-      Navigator.of(context).pushReplacementNamed('/tasks');
+      context.go('/main');
     }
   }
 
   void _skipOnboarding() {
-    Navigator.of(context).pushReplacementNamed('/tasks');
+    context.go('/main');
   }
 
   @override

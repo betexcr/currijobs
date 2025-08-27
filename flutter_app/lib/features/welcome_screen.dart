@@ -22,6 +22,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Pre-fill with test user credentials
+    _emailController.text = 'albmunmu@gmail.com';
+    _passwordController.text = 'test1234';
     // Start the splash timer immediately
     _startSplashTimer();
   }
@@ -54,13 +57,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     try {
       final dbService = DatabaseService();
       final exists = await dbService.checkUserExists(_emailController.text);
-      print('User ${_emailController.text} exists: $exists');
+      print('User ${_emailController.text} exists in profiles: $exists');
       
       if (exists) {
         final userProfile = await dbService.getUserByEmail(_emailController.text);
         if (userProfile != null) {
           print('User profile found: ${userProfile.fullName} (${userProfile.email})');
         }
+      } else {
+        print('User not found in profiles table - will try auth login anyway');
       }
     } catch (e) {
       print('Error checking user existence: $e');
@@ -89,11 +94,24 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       
       if (response.user != null) {
         print('Login successful for user: ${response.user!.email}');
+        
+        // Create profile if it doesn't exist
+        try {
+          final dbService = DatabaseService();
+          await dbService.createProfileIfNotExists(
+            response.user!.id, 
+            response.user!.email!
+          );
+          print('Profile created/verified for user: ${response.user!.email}');
+        } catch (e) {
+          print('Error creating profile: $e');
+        }
+        
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Login successful!')),
           );
-          context.go('/tasks'); // Navigate to tasks screen
+          context.go('/main'); // Navigate to main layout
         }
       } else {
         print('Login failed: No user returned');

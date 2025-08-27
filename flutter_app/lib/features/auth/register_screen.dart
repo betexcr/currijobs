@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/auth_provider.dart';
+import '../../core/database_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -35,15 +36,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       final authProvider = context.read<AuthProvider>();
-      await authProvider.signUp(_emailController.text, _passwordController.text);
+      final response = await authProvider.signUp(_emailController.text, _passwordController.text);
+      
+      print('Signup response: ${response.user?.email}');
+      print('Signup session: ${response.session != null}');
       
       if (mounted) {
+              if (response.user != null) {
+        // Create profile immediately after successful registration
+        try {
+          final dbService = DatabaseService();
+          await dbService.createProfileIfNotExists(
+            response.user!.id, 
+            response.user!.email!
+          );
+          print('Profile created for new user: ${response.user!.email}');
+        } catch (e) {
+          print('Error creating profile: $e');
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registration successful! Please check your email.')),
+          const SnackBar(content: Text('Registration successful! You can now log in.')),
+        );
+        context.go('/'); // Go back to login
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registration successful! Please check your email to confirm your account.')),
         );
         context.go('/'); // Go back to login
       }
+      }
     } catch (e) {
+      print('Registration error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Registration failed: ${e.toString()}')),

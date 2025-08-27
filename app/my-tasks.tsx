@@ -8,11 +8,10 @@ import {
   Modal,
   ScrollView,
   Dimensions,
+  Image,
 } from 'react-native';
-import MapView, { Marker, Callout, PROVIDER_GOOGLE, Region, UrlTile } from 'react-native-maps';
-import Constants from 'expo-constants';
+import MapView, { Marker, PROVIDER_GOOGLE, Region, UrlTile } from 'react-native-maps';
 import { Platform } from 'react-native';
-// Date picker removed (not used in this view)
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
@@ -20,14 +19,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { shouldUseOSMTiles } from '../lib/utils';
 import { useLocalization } from '../contexts/LocalizationContext';
-import { fetchTasksByUser, fetchOfferCountsForTasks, fetchTasksAssignedToUser, fetchUserProfile, cancelAssignedTaskByWorker, finishTaskByOwner, cancelTaskByOwner } from '../lib/database';
+import { fetchTasksByUser, fetchOfferCountsForTasks, fetchTasksAssignedToUser, fetchUserProfile, cancelAssignedTaskByWorker, cancelTaskByOwner } from '../lib/database';
 import { Task } from '../lib/types';
 import { getCategoryIcon, getCategoryColor, getCategoryLabel } from '../lib/utils';
 import CreateTaskForm from '../components/CreateTaskForm';
-import UserProfileCard from '../components/UserProfileCard';
-import QRCode from 'react-native-qrcode-svg';
 import ChambitoMascot from '../components/ChambitoMascot';
 const { height } = Dimensions.get('window');
+
+// Import Chambito icon
+const chambitoIcon = require('../assets/chambito.png');
 
 export default function MyTasksScreen() {
   const router = useRouter();
@@ -35,6 +35,10 @@ export default function MyTasksScreen() {
   const { theme } = useTheme();
   const { t } = useLocalization();
   const mapRef = useRef<MapView>(null);
+  
+  // Filter state
+  const [activeFilter, setActiveFilter] = useState<'all' | 'nearby' | 'in_progress' | 'completed'>('all');
+  
   const NIGHT_MAP_STYLE: any[] = [
     { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
     { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
@@ -60,30 +64,19 @@ export default function MyTasksScreen() {
   const [expandedPositions, setExpandedPositions] = useState<Record<string, { latitude: number; longitude: number }>>({});
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentRegion, setCurrentRegion] = useState<Region | null>(null);
-  const isExpoGoAndroid = Platform.OS === 'android' && (Constants as any)?.appOwnership === 'expo';
-  const isExpoGo = (Constants as any)?.appOwnership === 'expo';
 
   const [myTasks, setMyTasks] = useState<Task[]>([]);
   const openMyTasks = useMemo(() => myTasks.filter(t => t.status === 'open'), [myTasks]);
-  // Created by me and in progress
-  const myCreatedInProgress = useMemo(() => myTasks.filter(t => t.status === 'in_progress'), [myTasks]);
   // Assigned to me (worker side)
   const [assignedToMe, setAssignedToMe] = useState<Task[]>([]);
   const [offerCounts, setOfferCounts] = useState<Record<string, number>>({});
-  const [assignedProfiles, setAssignedProfiles] = useState<Record<string, any>>({});
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showOpenList, setShowOpenList] = useState(true);
-  const [showInProgressList, setShowInProgressList] = useState(true);
-  const [showAssignedList, setShowAssignedList] = useState(true);
   const [cancelModalTask, setCancelModalTask] = useState<Task | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [newTaskLocation, setNewTaskLocation] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
-  // Removed old inline form state; using shared CreateTaskForm inside modal
-
-  // Removed local category filter bar/state to revert to previous behavior
 
   useEffect(() => {
     (async () => {
@@ -132,9 +125,7 @@ export default function MyTasksScreen() {
         }));
         const map: Record<string, any> = {};
         entries.forEach(([uid, p]) => { map[uid] = p; });
-        setAssignedProfiles(map);
-      } else {
-        setAssignedProfiles({});
+        // Note: assignedProfiles state was removed as it's not used in the new design
       }
     } catch (error) {
       (globalThis as any).console?.error?.('Error fetching my tasks:', error);
@@ -148,21 +139,11 @@ export default function MyTasksScreen() {
     setShowCreateModal(true);
   };
 
-  // Removed inline create-task logic; CreateTaskForm handles this in the modal
-
   const handleTaskPress = (_task: Task) => {};
 
   const handleTaskDetails = (task: Task) => {
     router.push(`/task/${task.id}`);
   };
-
-  // submit offer navigation unused here
-
-  // categories list not used here
-
-  // Do not block UI on loading; render content and show inline status instead
-
-  // QRCode component imported directly
 
   // Helpers for expansion similar to main map
   const metersToLat = (meters: number) => meters / 111000; // approx
@@ -172,7 +153,6 @@ export default function MyTasksScreen() {
     const visibleKm = latDelta * 111;
     return Math.max(0.08, visibleKm * 0.05);
   };
-  // (reuse existing implementations further below)
   const computeStepMeters = (): number => {
     const desiredMarkerPx = 40;
     const desiredGapPx = 24;
@@ -228,282 +208,202 @@ export default function MyTasksScreen() {
     handleTaskPress(task);
   };
 
+  // Filter chips data
+  const filterChips = [
+    { key: 'all', label: t('all') || 'Todos' },
+    { key: 'nearby', label: t('nearby') || 'Cercanos' },
+    { key: 'in_progress', label: t('inProgressStatus') || 'En progreso' },
+    { key: 'completed', label: t('completedStatus') || 'Completados' },
+  ];
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: '#FAFAFA' }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
-        <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>
-          {t('myTasks')}
-        </Text>
-        <Text style={[styles.headerSubtitle, { color: theme.colors.text.secondary }]}>
-          {t('longPressMapToCreate')}
-        </Text>
-        {/* create button removed per request */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <Image source={chambitoIcon} style={styles.chambitoIcon} />
+          <Text style={styles.headerTitle}>
+            {t('myTasks') || 'Mis tareas'}
+          </Text>
+          <TouchableOpacity style={styles.filterIcon}>
+            <Text style={styles.filterIconText}>⚙️</Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Filter Chips */}
+        <View style={styles.filterChipsContainer}>
+          {filterChips.map((chip) => (
+            <TouchableOpacity
+              key={chip.key}
+              style={[
+                styles.filterChip,
+                activeFilter === chip.key && styles.filterChipActive
+              ]}
+              onPress={() => setActiveFilter(chip.key as any)}
+            >
+              <Text style={[
+                styles.filterChipText,
+                activeFilter === chip.key && styles.filterChipTextActive
+              ]}>
+                {chip.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} nestedScrollEnabled>
-        {/* Queen loading overlay for initial load or refresh */}
-        {!myTasks && (
-          <View style={{ position: 'absolute', top: 100, left: 0, right: 0, alignItems: 'center', zIndex: 5 }}>
-            <ChambitoMascot variant="queen" size="giant" showMessage message="Cargando..." />
-          </View>
-        )}
-      {/* Map View */}
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-          provider={shouldUseOSMTiles() ? undefined : (Platform.OS === 'ios' ? PROVIDER_GOOGLE : undefined)}
-          mapType={shouldUseOSMTiles() ? 'none' : 'standard'}
-          customMapStyle={shouldUseOSMTiles() ? undefined : (theme.mode === 'dark' ? NIGHT_MAP_STYLE : [])}
-        initialRegion={{
-          latitude: 9.923035,
-          longitude: -84.043457,
-          latitudeDelta: 0.1,
-          longitudeDelta: 0.1,
-        }}
-        onLongPress={handleMapLongPress}
-        onPress={() => {
-          if (isExpanded) {
-            setIsExpanded(false);
-            setExpandedPositions({});
-          }
-        }}
-        onRegionChangeComplete={(region) => setCurrentRegion(region)}
-      >
-          {shouldUseOSMTiles() && (
-            <UrlTile
-              urlTemplate={theme.mode === 'dark' ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
-              maximumZ={19}
-              tileSize={256}
-            />
-          )}
-        {openMyTasks.map((task) => (
-          <Marker
-            key={task.id}
-            coordinate={{
-              latitude: isExpanded && expandedPositions[task.id]?.latitude != null ? expandedPositions[task.id].latitude : (task.latitude || 0),
-              longitude: isExpanded && expandedPositions[task.id]?.longitude != null ? expandedPositions[task.id].longitude : (task.longitude || 0),
+        {/* Map View */}
+        <View style={styles.mapContainer}>
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            provider={shouldUseOSMTiles() ? undefined : (Platform.OS === 'ios' ? PROVIDER_GOOGLE : undefined)}
+            mapType={shouldUseOSMTiles() ? 'none' : 'standard'}
+            customMapStyle={shouldUseOSMTiles() ? undefined : (theme.mode === 'dark' ? NIGHT_MAP_STYLE : [])}
+            initialRegion={{
+              latitude: 9.923035,
+              longitude: -84.043457,
+              latitudeDelta: 0.1,
+              longitudeDelta: 0.1,
             }}
-            onPress={() => handleMarkerPressWithExpand(task)}
+            onLongPress={handleMapLongPress}
+            onPress={() => {
+              if (isExpanded) {
+                setIsExpanded(false);
+                setExpandedPositions({});
+              }
+            }}
+            onRegionChangeComplete={(region) => setCurrentRegion(region)}
           >
-            <View style={[styles.customMarker, { backgroundColor: getCategoryColor(task.category) }]}>
-              <Text style={styles.markerEmoji}>{getCategoryIcon(task.category)}</Text>
+            {shouldUseOSMTiles() && (
+              <UrlTile
+                urlTemplate={theme.mode === 'dark' ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
+                maximumZ={19}
+                tileSize={256}
+              />
+            )}
+            {openMyTasks.map((task) => (
+              <Marker
+                key={task.id}
+                coordinate={{
+                  latitude: isExpanded && expandedPositions[task.id]?.latitude != null ? expandedPositions[task.id].latitude : (task.latitude || 0),
+                  longitude: isExpanded && expandedPositions[task.id]?.longitude != null ? expandedPositions[task.id].longitude : (task.longitude || 0),
+                }}
+                onPress={() => handleMarkerPressWithExpand(task)}
+              >
+                <View style={[styles.customMarker, { backgroundColor: getCategoryColor(task.category) }]}>
+                  <Text style={styles.markerEmoji}>{getCategoryIcon(task.category)}</Text>
+                </View>
+              </Marker>
+            ))}
+          </MapView>
+        </View>
+
+        {/* Assigned to Me Section */}
+        {assignedToMe.length > 0 ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Asignadas a mí</Text>
             </View>
-              {/* Remove native callout to mirror map view overlay-only behavior */}
-          </Marker>
-        ))}
-      </MapView>
-
-        {/* Category Filter Bar removed per revert */}
-
-        {/* My Created Tasks - In Progress */}
-        {myCreatedInProgress.length > 0 && (
-          <View style={[styles.taskList, { backgroundColor: theme.colors.surface }]}> 
-            <TouchableOpacity onPress={() => setShowInProgressList(v => !v)}>
-              <Text style={[styles.taskListTitle, { color: theme.colors.text.primary }]}> 
-                {t('currentTasksInProgress') || 'Current Tasks In Progress'} ({myCreatedInProgress.length}) {showInProgressList ? '▾' : '▸'}
-              </Text>
-            </TouchableOpacity>
-            {showInProgressList && (
-            <View>
-              {myCreatedInProgress.map((task) => (
-                <TouchableOpacity key={task.id} style={[styles.taskItem, { backgroundColor: theme.colors.background }]} onPress={() => handleTaskDetails(task)}> 
-                  <View style={styles.taskHeader}>
-                    <View style={styles.taskCategory}>
-                      <Text style={styles.taskCategoryIcon}>{getCategoryIcon(task.category)}</Text>
-                      <Text style={[styles.taskCategoryText, { color: getCategoryColor(task.category) }]}>
+            {assignedToMe.map((task) => (
+              <View key={task.id} style={styles.taskCard}>
+                <View style={styles.taskCardHeader}>
+                  <View style={styles.taskCategoryContainer}>
+                    <Text style={styles.taskCategoryIcon}>{getCategoryIcon(task.category)}</Text>
+                    <View style={[styles.categoryPill, { backgroundColor: '#E8F5E8' }]}>
+                      <Text style={[styles.categoryPillText, { color: '#2E7D32' }]}>
                         {getCategoryLabel(task.category as any, t)}
                       </Text>
                     </View>
-                    <Text style={[styles.taskReward, { color: theme.colors.primary?.blue }]}>₡{task.reward?.toLocaleString()}</Text>
                   </View>
-                  <Text style={[styles.taskTitle, { color: theme.colors.text.primary }]}>{task.title}</Text>
-                  <Text style={[styles.taskDescription, { color: theme.colors.text.secondary }]}>{task.description}</Text>
-                  {/* Assigned worker profile */}
-                  {!!(task as any).assigned_to && assignedProfiles[String((task as any).assigned_to)] && (
-                    <UserProfileCard
-                      compact
-                      user={{
-                        id: String((task as any).assigned_to),
-                        name: assignedProfiles[String((task as any).assigned_to)]?.full_name || 'User',
-                        avatar: assignedProfiles[String((task as any).assigned_to)]?.avatar_url,
-                        rating: assignedProfiles[String((task as any).assigned_to)]?.rating || 4.5,
-                        total_reviews: assignedProfiles[String((task as any).assigned_to)]?.total_reviews || 0,
-                        completed_tasks: assignedProfiles[String((task as any).assigned_to)]?.completed_tasks || 0,
-                        total_earnings: assignedProfiles[String((task as any).assigned_to)]?.total_earnings || 0,
-                        wallet_balance: assignedProfiles[String((task as any).assigned_to)]?.wallet_balance || 0,
-                        member_since: assignedProfiles[String((task as any).assigned_to)]?.created_at || new Date().toISOString(),
-                        location: assignedProfiles[String((task as any).assigned_to)]?.location,
-                        verified: !!assignedProfiles[String((task as any).assigned_to)]?.is_verified,
-                      }}
-                    />
-                  )}
-                  <View style={styles.taskFooter}>
-                    <Text style={[styles.taskLocation, { color: theme.colors.text.secondary }]}>📍 {task.location}</Text>
-                    <Text style={[styles.taskStatus, { color: theme.colors.text.secondary }]}>Assigned</Text>
-                  </View>
-                  {QRCode && (
-                    <View style={{ alignItems: 'center', marginTop: 12 }}>
-                      <QRCode value={`currijobs://finish/${task.id}`} size={120} />
-                      <Text style={{ marginTop: 6, color: theme.colors.text.secondary }}>Scan to finalize and get paid.</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-            )}
-          </View>
-        )}
-
-        {/* Tasks Assigned To Me (worker) */}
-        {assignedToMe.length > 0 && (
-          <View style={[styles.taskList, { backgroundColor: theme.colors.surface }]}> 
-            <TouchableOpacity onPress={() => setShowAssignedList(v => !v)}>
-              <Text style={[styles.taskListTitle, { color: theme.colors.text.primary }]}>
-                {t('assignedToMe') || 'Assigned To Me'} ({assignedToMe.length}) {showAssignedList ? '▾' : '▸'}
-              </Text>
-            </TouchableOpacity>
-            {showAssignedList && (
-            <View>
-              {assignedToMe.map((task) => (
-                <TouchableOpacity key={task.id} style={[styles.taskItem, { backgroundColor: theme.colors.background }]} onPress={() => handleTaskDetails(task)}> 
-                  <View style={styles.taskHeader}>
-                    <View style={styles.taskCategory}>
-                      <Text style={styles.taskCategoryIcon}>{getCategoryIcon(task.category)}</Text>
-                      <Text style={[styles.taskCategoryText, { color: getCategoryColor(task.category) }]}>{getCategoryLabel(task.category as any, t)}</Text>
-                    </View>
-                    <Text style={[styles.taskReward, { color: theme.colors.primary?.blue }]}>₡{task.reward?.toLocaleString()}</Text>
-                  </View>
-                  <View style={{ alignSelf: 'flex-start', backgroundColor: '#F59E0B', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginBottom: 6 }}>
-                    <Text style={{ color: '#111827', fontWeight: '700', fontSize: 10 }}>{t('beingWorked') || 'In progress'}</Text>
-                  </View>
-                  <Text style={[styles.taskTitle, { color: theme.colors.text.primary }]}>{task.title}</Text>
-                  <Text style={[styles.taskDescription, { color: theme.colors.text.secondary }]}>{task.description}</Text>
-                  <View style={styles.taskFooter}>
-                    <Text style={[styles.taskLocation, { color: theme.colors.text.secondary }]}>📍 {task.location}</Text>
-                    <Text style={[styles.taskStatus, { color: theme.colors.text.secondary }]}>
-                      {task.status === 'open' && (t('openStatus') || 'Open')}
-                      {task.status === 'in_progress' && (t('inProgressStatus') || 'In Progress')}
-                      {task.status === 'completed' && (t('completedStatus') || 'Completed')}
-                      {task.status === 'cancelled' && (t('cancelledStatus') || 'Cancelled')}
-                    </Text>
-                  </View>
-                  {/* Cancel job (worker) */}
-                  <TouchableOpacity
-                    style={[styles.modalButton, { backgroundColor: '#F87171', paddingHorizontal: 12, paddingVertical: 8 }]}
+                  <Text style={styles.taskReward}>€{task.reward?.toLocaleString()}</Text>
+                </View>
+                <Text style={styles.taskTitle}>{task.title}</Text>
+                <Text style={styles.taskDescription}>{task.description}</Text>
+                <View style={styles.taskCardFooter}>
+                  <Text style={styles.taskLocation}>📍 {task.location}</Text>
+                  <Text style={styles.taskStatus}>En progreso</Text>
+                </View>
+                <View style={styles.taskCardButtons}>
+                  <TouchableOpacity 
+                    style={styles.primaryButton}
+                    onPress={() => handleTaskDetails(task)}
+                  >
+                    <Text style={styles.primaryButtonText}>Ver detalles</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.secondaryButton}
                     onPress={() => setCancelModalTask(task)}
                   >
-                     <Text style={{ color: 'white', fontWeight: '700' }}>{t('cancelJob') || 'Cancel Job'}</Text>
+                    <Text style={styles.secondaryButtonText}>Cancelar</Text>
                   </TouchableOpacity>
-                </TouchableOpacity>
-              ))}
-            </View>
-            )}
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyState}>
+            <ChambitoMascot size="large" showMessage message="Todavía no tienes tareas activas. ¡Acepta una oferta para empezar!" />
           </View>
         )}
 
-        {/* Open Task List */}
-      <View style={[styles.taskList, { backgroundColor: theme.colors.surface }]}>
-          <TouchableOpacity onPress={() => setShowOpenList(v => !v)}>
-        <Text style={[styles.taskListTitle, { color: theme.colors.text.primary }]}>
-                {t('myTasks')} ({openMyTasks.length}) {showOpenList ? '▾' : '▸'}
-        </Text>
-          </TouchableOpacity>
-          {showOpenList && (
-          <View>
-          {openMyTasks.map((task) => (
-            <TouchableOpacity
-              key={task.id}
-              style={[styles.taskItem, { backgroundColor: theme.colors.background }]}
-              onPress={() => handleTaskDetails(task)}
-            >
-              <View style={styles.taskHeader}>
-                <View style={styles.taskCategory}>
-                  <Text style={styles.taskCategoryIcon}>{getCategoryIcon(task.category)}</Text>
-                  <Text style={[styles.taskCategoryText, { color: getCategoryColor(task.category) }]}>
-                  {getCategoryLabel(task.category as any, t)}
-                  </Text>
+        {/* My Publications Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderNeutral}>
+            <Text style={styles.sectionTitleNeutral}>Mis publicaciones</Text>
+          </View>
+          {openMyTasks.length > 0 ? (
+            openMyTasks.map((task) => (
+              <View key={task.id} style={styles.taskCard}>
+                <View style={styles.taskCardHeader}>
+                  <View style={styles.taskCategoryContainer}>
+                    <Text style={styles.taskCategoryIcon}>{getCategoryIcon(task.category)}</Text>
+                    <View style={[styles.categoryPill, { backgroundColor: '#E8F5E8' }]}>
+                      <Text style={[styles.categoryPillText, { color: '#2E7D32' }]}>
+                        {getCategoryLabel(task.category as any, t)}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.taskReward}>€{task.reward?.toLocaleString()}</Text>
                 </View>
-                <Text style={[styles.taskReward, { color: theme.colors.primary?.blue }]}>
-                  ₡{task.reward?.toLocaleString()}
-                </Text>
-              </View>
-              {/* In-progress badge for owner tasks */}
-              {task.status === 'in_progress' && task.user_id === user?.id && (
-                <View style={{ alignSelf: 'flex-start', backgroundColor: '#F59E0B', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginBottom: 6 }}>
-                  <Text style={{ color: '#111827', fontWeight: '700', fontSize: 10 }}>{t('beingWorked') || 'In progress'}</Text>
+                <Text style={styles.taskTitle}>{task.title}</Text>
+                <Text style={styles.taskDescription}>{task.description}</Text>
+                <View style={styles.taskCardFooter}>
+                  <Text style={styles.taskLocation}>📍 {task.location}</Text>
+                  <Text style={styles.taskStatus}>Abierto</Text>
                 </View>
-              )}
-              {task.status === 'in_progress' && (task as any).assigned_to === user?.id && (
-                <View style={{ alignSelf: 'flex-start', backgroundColor: '#3B82F6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginBottom: 6 }}>
-                  <Text style={{ color: 'white', fontWeight: '700', fontSize: 10 }}>{t('youAreWorking') || 'You are working'}</Text>
-                </View>
-              )}
-              <Text style={[styles.taskTitle, { color: theme.colors.text.primary }]}>
-                {task.title}
-              </Text>
-              <Text style={[styles.taskDescription, { color: theme.colors.text.secondary }]}>
-                {task.description}
-              </Text>
-              {/* Owner: cancel job button (for tasks I created) */}
-              {task.user_id === user?.id && (
-                <View style={{ marginTop: 8, flexDirection: 'row', justifyContent: 'flex-end' }}>
-                  <TouchableOpacity
-                    style={[styles.modalButton, { backgroundColor: '#F87171', paddingHorizontal: 12, paddingVertical: 8 }]}
+                <View style={styles.taskCardButtons}>
+                  <TouchableOpacity 
+                    style={styles.offersButton}
+                    onPress={() => {
+                      router.push(`/make-offer?taskId=${task.id}&mode=manage`);
+                    }}
+                  >
+                    <Text style={styles.offersButtonText}>
+                      Ver ofertas ({offerCounts[task.id as string] || 0})
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.cancelButton}
                     onPress={async () => {
                       const ok = await cancelTaskByOwner(task.id as string, user!.id);
                       if (!ok) { Alert.alert(t('error') || 'Error', 'Could not cancel task'); return; }
                       await fetchMyTasks();
                     }}
                   >
-                    <Text style={{ color: 'white', fontWeight: '700' }}>{t('cancelJob') || 'Cancel Job'}</Text>
+                    <Text style={styles.cancelButtonText}>Cancelar</Text>
                   </TouchableOpacity>
                 </View>
-              )}
-              {/* Offers count and action */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                <Text style={{ color: theme.colors.text.secondary }}>
-                  {(offerCounts[task.id as string] || 0)} {t('offers') || 'offers'}
-                </Text>
-                <TouchableOpacity
-                  style={[styles.modalButton, { backgroundColor: '#1E3A8A', paddingHorizontal: 12, paddingVertical: 8 }]}
-                  onPress={() => {
-                    router.push(`/make-offer?taskId=${task.id}&mode=manage`);
-                  }}
-                >
-                  <Text style={{ color: 'white', fontWeight: '700' }}>{t('offers') || 'Offers'}</Text>
-                </TouchableOpacity>
               </View>
-              <View style={styles.taskFooter}>
-                <Text style={[styles.taskLocation, { color: theme.colors.text.secondary }]}>
-                  📍 {task.location}
-                </Text>
-                <Text style={[styles.taskStatus, { color: theme.colors.text.secondary }]}>
-                   {task.status === 'open' && (t('openStatus') || 'Open')}
-                   {task.status === 'in_progress' && (t('inProgressStatus') || 'In Progress')}
-                   {task.status === 'completed' && (t('completedStatus') || 'Completed')}
-                   {task.status === 'cancelled' && (t('cancelledStatus') || 'Cancelled')}
-                </Text>
-              </View>
-                {/* Finish task (owner) */}
-                {task.status === 'in_progress' && (task as any).assigned_to && (task as any).user_id === user?.id && (
-                  <TouchableOpacity
-                    style={[styles.modalButton, { backgroundColor: '#16A34A', paddingHorizontal: 12, paddingVertical: 8 }]}
-                    onPress={async () => {
-                      const ok = await finishTaskByOwner(task.id as string, user!.id);
-                      if (!ok) { Alert.alert(t('error') || 'Error', 'Could not finish task'); return; }
-                      await fetchMyTasks();
-                    }}
-                  >
-                     <Text style={{ color: 'white', fontWeight: '700' }}>{t('finishTask') || 'Finish Task'}</Text>
-                  </TouchableOpacity>
-                )}
-            </TouchableOpacity>
-          ))}
-          </View>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <ChambitoMascot size="large" showMessage message="Publica tu primera tarea aquí." />
+            </View>
           )}
         </View>
-        </ScrollView>
+      </ScrollView>
 
       {/* Create Task Modal */}
       <Modal
@@ -548,8 +448,8 @@ export default function MyTasksScreen() {
               </View>
             </ScrollView>
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => { setCancelModalTask(null); setCancelReason(''); }}>
-                <Text style={styles.cancelButtonText}>{t('cancel')}</Text>
+              <TouchableOpacity style={[styles.modalButton, styles.modalCancelButton]} onPress={() => { setCancelModalTask(null); setCancelReason(''); }}>
+                <Text style={styles.modalCancelButtonText}>{t('cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.createButton]}
@@ -575,32 +475,69 @@ export default function MyTasksScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FAFAFA',
   },
   header: {
-    padding: 16,
     paddingTop: 60,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  chambitoIcon: {
+    width: 24,
+    height: 24,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#111827',
+    flex: 1,
+    textAlign: 'center',
   },
-  headerSubtitle: {
-    fontSize: 14,
+  filterIcon: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  addButton: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
+  filterIconText: {
+    fontSize: 16,
+  },
+  filterChipsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 10,
-    marginTop: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
   },
-  addButtonText: {
+  filterChipActive: {
+    backgroundColor: '#2E7D32',
+  },
+  filterChipText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
+  },
+  mapContainer: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   map: {
-    height: Math.round(height * 0.35),
+    height: Math.round(height * 0.25),
   },
   customMarker: {
     width: 40,
@@ -614,83 +551,160 @@ const styles = StyleSheet.create({
   markerEmoji: {
     fontSize: 20,
   },
-  calloutContainer: {
-    padding: 8,
+  section: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionHeader: {
+    backgroundColor: '#2E7D32',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 8,
-    minWidth: 120,
+    marginBottom: 16,
   },
-  calloutTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 4,
+  sectionHeaderNeutral: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 16,
   },
-  calloutReward: {
-    fontSize: 12,
-    fontWeight: 'bold',
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
-  calloutCategory: {
-    fontSize: 10,
-    marginTop: 2,
+  sectionTitleNeutral: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
   },
-  taskList: {
-    padding: 16,
-    marginTop: 12,
-  },
-  taskListTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  taskScrollView: {},
-  taskItem: {
-    padding: 16,
+  taskCard: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
+    padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  taskHeader: {
+  taskCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-  taskCategory: {
+  taskCategoryContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   taskCategoryIcon: {
     fontSize: 16,
-    marginRight: 4,
   },
-  taskCategoryText: {
+  categoryPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  categoryPillText: {
     fontSize: 12,
     fontWeight: '500',
   },
   taskReward: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#FBC02D',
   },
   taskTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#111827',
     marginBottom: 4,
   },
   taskDescription: {
     fontSize: 14,
-    marginBottom: 8,
+    color: '#6B7280',
+    marginBottom: 12,
   },
-  taskFooter: {
+  taskCardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
   },
   taskLocation: {
     fontSize: 12,
+    color: '#6B7280',
   },
   taskStatus: {
     fontSize: 12,
-    textTransform: 'capitalize',
+    color: '#6B7280',
+  },
+  taskCardButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  primaryButton: {
+    flex: 1,
+    backgroundColor: '#2E7D32',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#DC2626',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  offersButton: {
+    flex: 1,
+    backgroundColor: '#1E3A8A',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  offersButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#374151',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
   },
   modalOverlay: {
     flex: 1,
@@ -710,50 +724,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: 'center',
   },
-  modalScrollView: {
-    maxHeight: height * 0.6,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    fontSize: 16,
-  },
-  textArea: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    fontSize: 16,
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  helperText: {
-    fontSize: 12,
-    marginTop: -10,
-    marginBottom: 12,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  categoryScroll: {
-    marginBottom: 16,
-  },
-  categoryButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  categoryButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -765,13 +735,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginHorizontal: 8,
   },
-  cancelButton: {
+  modalCancelButton: {
     backgroundColor: '#F3F4F6',
   },
   createButton: {
     backgroundColor: '#1E3A8A',
   },
-  cancelButtonText: {
+  modalCancelButtonText: {
     color: '#374151',
     textAlign: 'center',
     fontWeight: '500',
@@ -780,11 +750,6 @@ const styles = StyleSheet.create({
     color: 'white',
     textAlign: 'center',
     fontWeight: '500',
-  },
-  loadingText: {
-    textAlign: 'center',
-    marginTop: 50,
-    fontSize: 16,
   },
 });
 

@@ -85,5 +85,9 @@
     <string>Automatic</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>CurriJobs needs access to your location to show nearby tasks and help you find jobs in your area.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>CurriJobs needs access to your location to show nearby tasks and help you find jobs in your area.</string>
   </dict>
 </plist>

@@ -22,7 +22,9 @@
         "googleMapsApiKey": "AIzaSyCgZgC5arI2qEbflITc-JiHCR4e2zqhFUM"
       },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "CurriJobs needs access to your location to show nearby tasks and help you find jobs in your area.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "CurriJobs needs access to your location to show nearby tasks and help you find jobs in your area."
       }
     },
     "android": {
