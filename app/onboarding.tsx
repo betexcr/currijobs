@@ -111,8 +111,8 @@ export default function OnboardingScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Solid Background Color - Same as splash screen */}
-      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#e3923d' }]} />
+      {/* Solid Background Color */}
+      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#f8d384' }]} />
       
       {/* Progress Dots */}
       <View style={styles.progressContainer}>
