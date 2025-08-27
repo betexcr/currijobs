@@ -19,7 +19,7 @@ const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('albmunmu@gmail.com');
-  const [password, setPassword] = useState('test123');
+  const [password, setPassword] = useState('test1234');
   const [loading, setLoading] = useState(false);
   const passwordInputRef = useRef<TextInput>(null);
   const { signIn } = useAuth();
