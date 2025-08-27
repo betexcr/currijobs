@@ -271,7 +271,22 @@ export const validateTaskSearch = (data: unknown): TaskSearchParams => {
 
 // Safe validation functions (don't throw errors)
 export const safeValidateTask = (data: unknown) => {
-  return TaskSchema.safeParse(data);
+  // Create a more flexible schema for validation that handles missing optional fields
+  const FlexibleTaskSchema = TaskSchema.partial().extend({
+    // Required fields that must be present
+    id: z.string().uuid(),
+    title: z.string().min(1).max(200),
+    description: z.string().min(1).max(2000),
+    category: TaskCategorySchema,
+    reward: z.number().min(0).max(1000000),
+    location: z.string().max(200),
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+    user_id: z.string().uuid(),
+    created_at: z.string().datetime(),
+  });
+  
+  return FlexibleTaskSchema.safeParse(data);
 };
 
 export const safeValidateCreateTask = (data: unknown) => {
