@@ -31,7 +31,8 @@ const chambitoIcon = require('../assets/chambito.png');
 
 export default function MyTasksScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const authContext = useAuth();
+  const user = authContext?.user;
   const { theme } = useTheme();
   const { t } = useLocalization();
   const mapRef = useRef<MapView>(null);
