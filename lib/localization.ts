@@ -196,6 +196,12 @@ export interface LocalizationStrings {
   continueWithGoogle: string;
   continueWithApple: string;
   termsAndPrivacy: string;
+  joinCurriJobs: string;
+  createAccountToGetStarted: string;
+  fullName: string;
+  confirmPassword: string;
+  creatingAccount: string;
+  alreadyHaveAccount: string;
   loginToContinue: string;
   loginFailed: string;
   skipToDemo: string;
@@ -487,6 +493,12 @@ const localizations: Record<Language, LocalizationStrings> = {
     continueWithGoogle: 'Continuar con Google',
     continueWithApple: 'Continuar con Apple',
     termsAndPrivacy: 'Al registrarte, aceptas nuestras Términos y Política de privacidad',
+    joinCurriJobs: 'Únete a CurriJobs!',
+    createAccountToGetStarted: 'Crea tu cuenta para comenzar',
+    fullName: 'Nombre completo',
+    confirmPassword: 'Confirmar contraseña',
+    creatingAccount: 'Creando cuenta...',
+    alreadyHaveAccount: '¿Ya tienes una cuenta?',
     loginToContinue: 'Inicia sesión para continuar',
     loginFailed: 'Error al iniciar sesión',
     skipToDemo: 'Saltar al demo',
@@ -776,6 +788,12 @@ const localizations: Record<Language, LocalizationStrings> = {
     continueWithGoogle: 'Continue with Google',
     continueWithApple: 'Continue with Apple',
     termsAndPrivacy: 'By registering, you accept our Terms and Privacy Policy',
+    joinCurriJobs: 'Join CurriJobs!',
+    createAccountToGetStarted: 'Create your account to get started',
+    fullName: 'Full Name',
+    confirmPassword: 'Confirm Password',
+    creatingAccount: 'Creating Account...',
+    alreadyHaveAccount: 'Already have an account?',
     loginToContinue: 'Login to continue',
     loginFailed: 'Login failed',
     skipToDemo: 'Skip to demo',
@@ -1057,6 +1075,12 @@ const localizations: Record<Language, LocalizationStrings> = {
     continueWithGoogle: '使用 Google 继续',
     continueWithApple: '使用 Apple 继续',
     termsAndPrivacy: '注册即表示您同意我们的条款和隐私政策',
+    joinCurriJobs: '加入 CurriJobs！',
+    createAccountToGetStarted: '创建您的账户开始使用',
+    fullName: '全名',
+    confirmPassword: '确认密码',
+    creatingAccount: '创建账户中...',
+    alreadyHaveAccount: '已有账户？',
     loginToContinue: '登录继续',
     loginFailed: '登录失败',
     skipToDemo: '跳转到演示',

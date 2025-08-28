@@ -9,11 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
-import ChambitoMascot from '../components/ChambitoMascot';
+import { useLocalization } from '../contexts/LocalizationContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -30,7 +30,7 @@ export default function RegisterScreen() {
   const confirmPasswordInputRef = useRef<TextInput>(null);
   
   const { signUp } = useAuth();
-  const { theme } = useTheme();
+  const { t } = useLocalization();
   const router = useRouter();
 
   const handleRegister = async () => {
@@ -56,232 +56,179 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      {/* Header with time - Like in the image */}
-      <View style={[styles.header, { backgroundColor: '#1E3A8A' }]}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.backIcon}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.timeText}>5:41</Text>
-          <View style={styles.signalIcons}>
-            <Text style={styles.signalIcon}>📶</Text>
-            <Text style={styles.batteryIcon}>🔋</Text>
-          </View>
-        </View>
+    <View style={styles.container}>
+      {/* Header with Image */}
+      <View style={styles.headerSection}>
+        <Image 
+          source={require('../assets/login.png')} 
+          style={styles.headerImage} 
+          resizeMode="cover"
+        />
       </View>
 
-      {/* Main Content */}
-      <View style={styles.content}>
-        {/* Welcome Section */}
+      {/* Content Section */}
+      <View style={styles.contentSection}>
+        {/* Welcome Text */}
         <View style={styles.welcomeSection}>
-          <ChambitoMascot mood="happy" size="large" />
-          <Text style={styles.welcomeTitle}>Join CurriJobs!</Text>
-          <Text style={styles.welcomeSubtitle}>Create your account to get started</Text>
+          <Text style={styles.welcomeTitle}>
+            {t('joinCurriJobs') || 'Únete a CurriJobs!'}
+          </Text>
+          <Text style={styles.welcomeSubtitle}>
+            {t('createAccountToGetStarted') || 'Crea tu cuenta para comenzar'}
+          </Text>
         </View>
 
-        {/* Register Form */}
-        <View style={[styles.formContainer, { backgroundColor: '#FFFFFF' }]}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Full Name</Text>
-            <TextInput
-              style={[styles.input, { borderColor: '#E5E7EB' }]}
-              placeholder="Enter your full name"
-              placeholderTextColor="#9CA3AF"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-            />
-          </View>
+        {/* Form */}
+        <View style={styles.formSection}>
+          {/* Full Name Input */}
+          <TextInput
+            style={styles.input}
+            placeholder={t('fullName') || 'Full Name'}
+            placeholderTextColor="#9CA3AF"
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+            returnKeyType="next"
+            onSubmitEditing={() => emailInputRef.current?.focus()}
+          />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Email</Text>
-            <TextInput
-              style={[styles.input, { borderColor: '#E5E7EB' }]}
-              placeholder="Enter your email"
-              placeholderTextColor="#9CA3AF"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              ref={emailInputRef}
-              returnKeyType="next"
-              onSubmitEditing={() => passwordInputRef.current?.focus()}
-            />
-          </View>
+          {/* Email Input */}
+          <TextInput
+            style={styles.input}
+            placeholder={t('email') || 'Email'}
+            placeholderTextColor="#9CA3AF"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            ref={emailInputRef}
+            returnKeyType="next"
+            onSubmitEditing={() => passwordInputRef.current?.focus()}
+          />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Password</Text>
-            <TextInput
-              style={[styles.input, { borderColor: '#E5E7EB' }]}
-              placeholder="Create a password"
-              placeholderTextColor="#9CA3AF"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              ref={passwordInputRef}
-              returnKeyType="next"
-              onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
-            />
-          </View>
+          {/* Password Input */}
+          <TextInput
+            style={styles.input}
+            placeholder={t('password') || 'Password'}
+            placeholderTextColor="#9CA3AF"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            ref={passwordInputRef}
+            returnKeyType="next"
+            onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
+          />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Confirm Password</Text>
-            <TextInput
-              style={[styles.input, { borderColor: '#E5E7EB' }]}
-              placeholder="Confirm your password"
-              placeholderTextColor="#9CA3AF"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              ref={confirmPasswordInputRef}
-              returnKeyType="done"
-              onSubmitEditing={handleRegister}
-            />
-          </View>
+          {/* Confirm Password Input */}
+          <TextInput
+            style={styles.input}
+            placeholder={t('confirmPassword') || 'Confirm Password'}
+            placeholderTextColor="#9CA3AF"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            ref={confirmPasswordInputRef}
+            returnKeyType="done"
+            onSubmitEditing={handleRegister}
+          />
 
+          {/* Register Button */}
           <TouchableOpacity
-            style={[styles.registerButton, { backgroundColor: '#FF6B35' }]}
+            style={styles.registerButton}
             onPress={handleRegister}
             disabled={loading}
           >
             <Text style={styles.registerButtonText}>
-              {loading ? 'Creating Account...' : 'Create Account'}
+              {loading ? (t('creatingAccount') || 'Creando cuenta...') : (t('createAccount') || 'Crear cuenta')}
             </Text>
           </TouchableOpacity>
 
+          {/* Back to Login Button */}
           <TouchableOpacity
-            style={styles.loginLink}
-            onPress={() => router.push('/login')}
+            style={styles.backToLoginButton}
+            onPress={() => router.back()}
+            disabled={loading}
           >
-            <Text style={styles.loginText}>
-              Already have an account? <Text style={styles.loginHighlight}>Sign In</Text>
+            <Text style={styles.backToLoginButtonText}>
+              {t('alreadyHaveAccount') || '¿Ya tienes una cuenta?'} <Text style={styles.backToLoginHighlight}>{t('signIn') || 'Iniciar sesión'}</Text>
             </Text>
           </TouchableOpacity>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FFFFFF',
   },
-  header: {
-    backgroundColor: '#1E3A8A',
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+  headerSection: {
+    height: height * 0.35,
+    backgroundColor: '#E3F2FD',
   },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  headerImage: {
+    width: '100%',
+    height: '100%',
   },
-  backIcon: {
-    fontSize: 24,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  timeText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  signalIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  signalIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  batteryIcon: {
-    fontSize: 16,
-  },
-  content: {
+  contentSection: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 40,
+    paddingHorizontal: 24,
+    paddingTop: 32,
   },
   welcomeSection: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
   },
   welcomeTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1E3A8A',
-    marginTop: 20,
+    color: '#1F2937',
     marginBottom: 8,
+    textAlign: 'center',
   },
   welcomeSubtitle: {
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
+    lineHeight: 22,
   },
-  formContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E3A8A',
-    marginBottom: 8,
+  formSection: {
+    flex: 1,
   },
   input: {
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    padding: 16,
     fontSize: 16,
-    color: '#1E3A8A',
     backgroundColor: '#FFFFFF',
+    color: '#1F2937',
+    marginBottom: 16,
   },
   registerButton: {
-    backgroundColor: '#FF6B35',
-    borderRadius: 12,
+    backgroundColor: '#10B981',
     paddingVertical: 16,
-    paddingHorizontal: 24,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 8,
-    shadowColor: '#FF6B35',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    marginBottom: 12,
   },
   registerButtonText: {
-    fontSize: 18,
+    color: 'white',
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#FFFFFF',
   },
-  loginLink: {
+  backToLoginButton: {
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 16,
   },
-  loginText: {
+  backToLoginButtonText: {
     fontSize: 16,
     color: '#6B7280',
   },
-  loginHighlight: {
-    color: '#FF6B35',
+  backToLoginHighlight: {
+    color: '#1E3A8A',
     fontWeight: 'bold',
   },
 });
