@@ -24,15 +24,16 @@ export default function WelcomeScreen() {
   const { theme } = useTheme();
   const { t } = useLocalization();
   
-  const [showLogin, setShowLogin] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [splashImageLoaded, setSplashImageLoaded] = useState(false);
+  const [loginImageLoaded, setLoginImageLoaded] = useState(false);
   const [splashTimerComplete, setSplashTimerComplete] = useState(false);
   const [splashStarted, setSplashStarted] = useState(false);
   // User input fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const splashSource = require('../assets/splash.png');
+  const loginSource = require('../assets/login.png');
   const [splashHeight, setSplashHeight] = useState(height);
 
   useEffect(() => {
@@ -41,15 +42,15 @@ export default function WelcomeScreen() {
   }, []);
 
   useEffect(() => {
-    // Start 3-second timer only after image is loaded
-    if (imageLoaded && splashStarted) {
+    // Start 3-second timer only after both images are loaded
+    if (splashImageLoaded && loginImageLoaded && splashStarted) {
       const timer = setTimeout(() => {
         setSplashTimerComplete(true);
       }, 3000);
 
       return () => clearTimeout(timer);
     }
-  }, [imageLoaded, splashStarted]);
+  }, [splashImageLoaded, loginImageLoaded, splashStarted]);
 
   useEffect(() => {
     try {
@@ -74,8 +75,8 @@ export default function WelcomeScreen() {
     }
   }, [user, loading]);
 
-  // Show splash screen when image is loaded and timer is active
-  const shouldShowSplash = splashStarted && imageLoaded && !splashTimerComplete;
+  // Show splash screen when both images are loaded and timer is active
+  const shouldShowSplash = splashStarted && splashImageLoaded && loginImageLoaded && !splashTimerComplete;
   const shouldShowLogin = splashTimerComplete;
 
   const handleLogin = async () => {
@@ -103,8 +104,8 @@ export default function WelcomeScreen() {
     router.replace('/onboarding');
   };
 
-  // Show splash screen only when image is loaded and timer is active
-  if (shouldShowSplash && imageLoaded) {
+  // Show splash screen only when both images are loaded and timer is active
+  if (shouldShowSplash) {
     return (
       <View style={[styles.container, { backgroundColor: '#f8d384' }]}>
         {/* Splash Image - Fit Width */}
@@ -113,23 +114,30 @@ export default function WelcomeScreen() {
             source={splashSource}
             style={[styles.splashImage, { height: splashHeight }]}
             resizeMode="contain"
-            onLoad={() => setImageLoaded(true)}
+            onLoad={() => setSplashImageLoaded(true)}
           />
         </View>
       </View>
     );
   }
 
-  // Show loading state while splash is not started yet or image is loading
-  if (!splashStarted || !imageLoaded) {
+  // Show loading state while images are loading
+  if (!splashStarted || !splashImageLoaded || !loginImageLoaded) {
     return (
       <View style={[styles.container, { backgroundColor: 'transparent' }]}>
         <View style={styles.splashWrapper}>
+          {/* Preload splash image */}
           <Image
             source={splashSource}
             style={[styles.splashImage, { height: splashHeight }]}
             resizeMode="contain"
-            onLoad={() => setImageLoaded(true)}
+            onLoad={() => setSplashImageLoaded(true)}
+          />
+          {/* Preload login image */}
+          <Image
+            source={loginSource}
+            style={{ width: 1, height: 1, opacity: 0 }}
+            onLoad={() => setLoginImageLoaded(true)}
           />
         </View>
       </View>
