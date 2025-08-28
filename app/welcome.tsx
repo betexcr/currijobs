@@ -137,81 +137,120 @@ export default function WelcomeScreen() {
   }
 
   return (
-    <KeyboardAvoidingView 
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={styles.loginContainer}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: theme.colors.text.primary }]}>
-            {t('welcomeToCurriJobs')}
+    <View style={styles.container}>
+      {/* Header with Image */}
+      <View style={styles.headerSection}>
+        <Image 
+          source={require('../assets/login.png')} 
+          style={styles.headerImage} 
+          resizeMode="cover"
+        />
+      </View>
+
+      {/* Content Section */}
+      <View style={styles.contentSection}>
+        {/* Welcome Text */}
+        <View style={styles.welcomeSection}>
+          <Text style={styles.welcomeTitle}>
+            Bienvenido a CurriJobs
           </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
-            {t('loginToContinue')}
+          <Text style={styles.welcomeSubtitle}>
+            Conectando trabajadores y clientes de confianza.
+          </Text>
+          {/* Debug text to verify new design is loaded */}
+          <Text style={styles.debugText}>
+            🎨 New Design Loaded Successfully!
           </Text>
         </View>
 
-        <View style={styles.form}>
+        {/* Form */}
+        <View style={styles.formSection}>
+          {/* Email Input */}
           <TextInput
-            style={[styles.input, { 
-              backgroundColor: theme.colors.surface,
-              color: theme.colors.text.primary,
-              borderColor: theme.colors.border
-            }]}
-            placeholder={t('email')}
-            placeholderTextColor={theme.colors.text.secondary}
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#9CA3AF"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
-            autoCorrect={false}
           />
 
+          {/* Password Input */}
           <TextInput
-            style={[styles.input, { 
-              backgroundColor: theme.colors.surface,
-              color: theme.colors.text.primary,
-              borderColor: theme.colors.border
-            }]}
-            placeholder={t('password')}
-            placeholderTextColor={theme.colors.text.secondary}
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor="#9CA3AF"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
             autoCapitalize="none"
-            autoCorrect={false}
           />
 
+          {/* Login Button */}
           <TouchableOpacity
-            style={[styles.loginButton, { backgroundColor: '#1E3A8A' }]}
+            style={styles.loginButton}
             onPress={handleLogin}
             disabled={isLoggingIn}
           >
             <Text style={styles.loginButtonText}>
-              {isLoggingIn ? t('loggingIn') : t('login')}
+              {isLoggingIn ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </Text>
           </TouchableOpacity>
 
+          {/* Create Account Button */}
           <TouchableOpacity
-            style={styles.signupButton}
+            style={styles.createAccountButton}
             onPress={() => router.push('/register')}
             disabled={isLoggingIn}
           >
-            <Text style={styles.signupButtonText}>
-              {t('signUp')}
+            <Text style={styles.createAccountButtonText}>
+              Crear cuenta
             </Text>
           </TouchableOpacity>
 
-          {/* Removed skip to app link as login is required */}
+          {/* Separator */}
+          <View style={styles.separator}>
+            <View style={styles.separatorLine} />
+            <Text style={styles.separatorText}>Or</Text>
+            <View style={styles.separatorLine} />
+          </View>
+
+          {/* Social Buttons */}
+          <TouchableOpacity style={styles.socialButton}>
+            <Text style={styles.socialButtonText}>
+              Continuar con Google
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.socialButton}>
+            <Text style={styles.socialButtonText}>
+              Continuar con Apple
+            </Text>
+          </TouchableOpacity>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <TouchableOpacity>
+              <Text style={styles.forgotPasswordText}>
+                ¿Olvidaste tu contraseña?
+              </Text>
+            </TouchableOpacity>
+            
+            <Text style={styles.termsText}>
+              Al registrarte, aceptas nuestras Términos y Política de privacidad
+            </Text>
+          </View>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
   },
   splashImage: {
     width: width,
@@ -227,66 +266,124 @@ const styles = StyleSheet.create({
     height: 200,
     backgroundColor: 'transparent',
   },
-  loginContainer: {
+  headerSection: {
+    height: height * 0.35,
+    backgroundColor: '#E3F2FD',
+  },
+  headerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  contentSection: {
     flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
+    paddingTop: 32,
   },
-  header: {
+  welcomeSection: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
   },
-  title: {
+  welcomeTitle: {
     fontSize: 28,
     fontWeight: 'bold',
+    color: '#1F2937',
     marginBottom: 8,
     textAlign: 'center',
   },
-  subtitle: {
+  welcomeSubtitle: {
     fontSize: 16,
+    color: '#6B7280',
     textAlign: 'center',
+    lineHeight: 22,
   },
-  form: {
-    width: '100%',
+  debugText: {
+    fontSize: 14,
+    color: '#10B981',
+    textAlign: 'center',
+    marginTop: 8,
+    fontWeight: 'bold',
+  },
+  formSection: {
+    flex: 1,
   },
   input: {
     borderWidth: 1,
+    borderColor: '#E5E7EB',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 16,
     fontSize: 16,
+    backgroundColor: '#FFFFFF',
+    color: '#1F2937',
+    marginBottom: 16,
   },
   loginButton: {
+    backgroundColor: '#10B981',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 8,
+    marginBottom: 12,
   },
   loginButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  signupButton: {
+  createAccountButton: {
     borderWidth: 2,
     borderColor: '#1E3A8A',
     borderRadius: 12,
     paddingVertical: 16,
-    paddingHorizontal: 24,
     alignItems: 'center',
-    marginTop: 16,
+    marginBottom: 24,
   },
-  signupButtonText: {
+  createAccountButtonText: {
+    color: '#1E3A8A',
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#1E3A8A',
   },
-  skipButton: {
+  separator: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
+    marginBottom: 24,
   },
-  skipButtonText: {
+  separatorLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  separatorText: {
+    marginHorizontal: 16,
+    color: '#6B7280',
     fontSize: 14,
-    textDecorationLine: 'underline',
+  },
+  socialButton: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  socialButtonText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  footer: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  forgotPasswordText: {
+    color: '#1E3A8A',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 16,
+  },
+  termsText: {
+    color: '#6B7280',
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 16,
   },
 });
