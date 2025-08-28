@@ -52,7 +52,11 @@ export default function LoginScreen() {
           source={require('../assets/login.png')} 
           style={styles.headerImage} 
           resizeMode="cover"
+          onError={(error) => console.log('Image loading error:', error)}
+          onLoad={() => console.log('Image loaded successfully')}
         />
+        {/* Fallback background color if image doesn't load */}
+        <View style={styles.headerFallback} />
       </View>
 
       {/* Content Section */}
@@ -64,6 +68,10 @@ export default function LoginScreen() {
           </Text>
           <Text style={styles.welcomeSubtitle}>
             Conectando trabajadores y clientes de confianza.
+          </Text>
+          {/* Debug text to verify new design is loaded */}
+          <Text style={styles.debugText}>
+            🎨 New Design Loaded Successfully!
           </Text>
         </View>
 
@@ -173,6 +181,15 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  headerFallback: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#E3F2FD',
+    zIndex: -1,
+  },
   contentSection: {
     flex: 1,
     paddingHorizontal: 24,
@@ -194,6 +211,13 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  debugText: {
+    fontSize: 14,
+    color: '#10B981',
+    textAlign: 'center',
+    marginTop: 8,
+    fontWeight: 'bold',
   },
   formSection: {
     flex: 1,
