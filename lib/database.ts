@@ -876,15 +876,55 @@ export const fetchPaymentsCountsForUser = async (userId: string): Promise<{ made
 
 export const updateUserProfile = async (userId: string, updates: any) => {
   try {
+    // Filter out fields that might not exist in the database schema
+    const safeUpdates: any = {};
+    const allowedFields = [
+      'expo_push_token', 'phone', 'avatar_url', 'bio', 'location', 
+      'latitude', 'longitude', 'home_address', 'home_latitude', 'home_longitude',
+      'rating', 'total_jobs', 'total_earnings', 'is_verified', 'is_available'
+    ];
+    
+    Object.keys(updates).forEach(key => {
+      if (allowedFields.includes(key)) {
+        safeUpdates[key] = updates[key];
+      }
+    });
+
+    // If no valid fields to update, return success
+    if (Object.keys(safeUpdates).length === 0) {
+      console.log('No valid fields to update in user profile');
+      return { id: userId };
+    }
+
     const { data, error } = await db
       .from('profiles')
-      .update(updates)
+      .update(safeUpdates)
       .eq('id', userId)
       .select()
       .single();
 
     if (error) {
       console.error('Error updating user profile:', error);
+      // Try to update only basic fields that definitely exist
+      const basicUpdates: any = {};
+      if (updates.phone) basicUpdates.phone = updates.phone;
+      if (updates.avatar_url) basicUpdates.avatar_url = updates.avatar_url;
+      if (updates.bio) basicUpdates.bio = updates.bio;
+      
+      if (Object.keys(basicUpdates).length > 0) {
+        const { data: basicData, error: basicError } = await db
+          .from('profiles')
+          .update(basicUpdates)
+          .eq('id', userId)
+          .select()
+          .single();
+        
+        if (basicError) {
+          console.error('Error updating basic user profile:', basicError);
+          return null;
+        }
+        return basicData;
+      }
       return null;
     }
 

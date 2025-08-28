@@ -16,7 +16,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useLocalization } from '../contexts/LocalizationContext';
 import ThemeCustomizer from '../components/ThemeCustomizer';
 import MapView, { Marker, PROVIDER_GOOGLE, UrlTile } from 'react-native-maps';
-import { updateUserProfile, clearDemoTasks } from '../lib/database';
+import { updateUserProfile } from '../lib/database';
 import { shouldUseOSMTiles } from '../lib/utils';
 
 export default function SettingsScreen() {
@@ -47,10 +47,10 @@ export default function SettingsScreen() {
   ];
 
   const colorblindOptions = [
-    { type: 'normal', name: 'Normal Vision', description: 'Standard colors' },
-    { type: 'protanopia', name: 'Protanopia', description: 'Red-green colorblindness' },
-    { type: 'deuteranopia', name: 'Deuteranopia', description: 'Red-green colorblindness' },
-    { type: 'tritanopia', name: 'Tritanopia', description: 'Blue-yellow colorblindness' },
+    { type: 'normal', name: 'Normal Vision', description: 'colorblindNormalDesc' },
+    { type: 'protanopia', name: 'Protanopia', description: 'colorblindProtanopiaDesc' },
+    { type: 'deuteranopia', name: 'Deuteranopia', description: 'colorblindDeuteranopiaDesc' },
+    { type: 'tritanopia', name: 'Tritanopia', description: 'colorblindTritanopiaDesc' },
   ];
 
   const renderSection = (title: string, children: React.ReactNode) => (
@@ -150,7 +150,7 @@ export default function SettingsScreen() {
                     styles.optionDescription,
                     { color: theme.colorblind === option.type ? 'rgba(255,255,255,0.8)' : theme.colors.text.secondary }
                   ]}>
-                    {t('colorblindStandardColors')}
+                    {t(option.description)}
                   </Text>
                 </View>
                 {theme.colorblind === option.type && (
@@ -314,36 +314,7 @@ export default function SettingsScreen() {
           </View>
         ))}
 
-        {/* Clear Demo Tasks */}
-        <TouchableOpacity
-          style={[styles.signOutButton, { backgroundColor: '#F59E0B', marginBottom: 12 }]}
-          onPress={async () => {
-            Alert.alert(
-              'Clear Demo Tasks',
-              'This will remove all locally stored demo tasks. This action cannot be undone.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { 
-                  text: 'Clear Tasks', 
-                  style: 'destructive', 
-                  onPress: async () => {
-                    try {
-                      await clearDemoTasks();
-                      Alert.alert('Success', 'Demo tasks have been cleared. Please restart the app to see the changes.');
-                    } catch (error) {
-                      Alert.alert('Error', 'Failed to clear demo tasks. Please try again.');
-                    }
-                  }
-                },
-              ]
-            );
-          }}
-        >
-          <Ionicons name="trash-outline" size={20} color="white" />
-          <Text style={[styles.signOutText, { color: 'white' }]}>
-            Clear Demo Tasks
-          </Text>
-        </TouchableOpacity>
+
 
         {/* Sign Out */}
         <TouchableOpacity

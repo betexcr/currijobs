@@ -278,6 +278,10 @@ export interface LocalizationStrings {
   colorblindDeuteranopia: string;
   colorblindTritanopia: string;
   colorblindStandardColors: string;
+  colorblindNormalDesc: string;
+  colorblindProtanopiaDesc: string;
+  colorblindDeuteranopiaDesc: string;
+  colorblindTritanopiaDesc: string;
   // Rank screen
   yourRank: string;
   badgesLabel: string;
@@ -575,6 +579,10 @@ const localizations: Record<Language, LocalizationStrings> = {
     colorblindDeuteranopia: 'Deuteranopia',
     colorblindTritanopia: 'Tritanopia',
     colorblindStandardColors: 'Colores estándar',
+    colorblindNormalDesc: 'Colores optimizados para visión normal',
+    colorblindProtanopiaDesc: 'Colores adaptados para dificultad con rojo-verde',
+    colorblindDeuteranopiaDesc: 'Colores adaptados para dificultad con rojo-verde',
+    colorblindTritanopiaDesc: 'Colores adaptados para dificultad con azul-amarillo',
     // Rank screen
     yourRank: 'Tu Rango',
     badgesLabel: 'Insignias',
@@ -870,6 +878,10 @@ const localizations: Record<Language, LocalizationStrings> = {
     colorblindDeuteranopia: 'Deuteranopia',
     colorblindTritanopia: 'Tritanopia',
     colorblindStandardColors: 'Standard colors',
+    colorblindNormalDesc: 'Colors optimized for normal vision',
+    colorblindProtanopiaDesc: 'Colors adapted for red-green difficulty',
+    colorblindDeuteranopiaDesc: 'Colors adapted for red-green difficulty',
+    colorblindTritanopiaDesc: 'Colors adapted for blue-yellow difficulty',
     // Rank screen
     yourRank: 'Your Rank',
     badgesLabel: 'Badges',
@@ -1156,6 +1168,10 @@ const localizations: Record<Language, LocalizationStrings> = {
     colorblindDeuteranopia: '绿色盲',
     colorblindTritanopia: '蓝黄色盲',
     colorblindStandardColors: '标准颜色',
+    colorblindNormalDesc: '为正常视觉优化的颜色',
+    colorblindProtanopiaDesc: '为红绿色盲适配的颜色',
+    colorblindDeuteranopiaDesc: '为红绿色盲适配的颜色',
+    colorblindTritanopiaDesc: '为蓝黄色盲适配的颜色',
     // Rank screen
     yourRank: '你的等级',
     badgesLabel: '徽章',
