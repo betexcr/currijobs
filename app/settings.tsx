@@ -18,6 +18,7 @@ import ThemeCustomizer from '../components/ThemeCustomizer';
 import MapView, { Marker, PROVIDER_GOOGLE, UrlTile } from 'react-native-maps';
 import { updateUserProfile } from '../lib/database';
 import { shouldUseOSMTiles } from '../lib/utils';
+import { getAddressSuggestions, geocodeAddress, reverseGeocode, AddressSuggestion } from '../lib/location';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -28,6 +29,9 @@ export default function SettingsScreen() {
   const [homeAddress, setHomeAddress] = useState<string>((user as any)?.home_address || '');
   const [homeLat, setHomeLat] = useState<number | null>((user as any)?.home_latitude ?? null);
   const [homeLon, setHomeLon] = useState<number | null>((user as any)?.home_longitude ?? null);
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLoadingAddress, setIsLoadingAddress] = useState(false);
 
   const handleSignOut = () => {
     Alert.alert(
@@ -38,6 +42,62 @@ export default function SettingsScreen() {
         { text: 'Sign Out', style: 'destructive', onPress: signOut },
       ]
     );
+  };
+
+  // Address autocomplete functionality
+  const handleAddressChange = async (text: string) => {
+    setHomeAddress(text);
+    setShowSuggestions(false);
+    
+    if (text.length > 2) {
+      setIsLoadingAddress(true);
+      try {
+        const suggestions = await getAddressSuggestions(text);
+        setAddressSuggestions(suggestions);
+        setShowSuggestions(suggestions.length > 0);
+      } catch (error) {
+        console.error('Error getting address suggestions:', error);
+      } finally {
+        setIsLoadingAddress(false);
+      }
+    } else {
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleAddressSelect = async (suggestion: AddressSuggestion) => {
+    setHomeAddress(suggestion.description);
+    setShowSuggestions(false);
+    setIsLoadingAddress(true);
+    
+    try {
+      const geocodingResult = await geocodeAddress(suggestion.place_id);
+      if (geocodingResult) {
+        setHomeLat(geocodingResult.latitude);
+        setHomeLon(geocodingResult.longitude);
+      }
+    } catch (error) {
+      console.error('Error geocoding address:', error);
+    } finally {
+      setIsLoadingAddress(false);
+    }
+  };
+
+  const handleMapLongPress = async (e: any) => {
+    const { latitude, longitude } = e.nativeEvent.coordinate;
+    setHomeLat(latitude);
+    setHomeLon(longitude);
+    
+    // Try to get address from coordinates
+    try {
+      const address = await reverseGeocode(latitude, longitude);
+      if (address) {
+        setHomeAddress(address);
+      }
+    } catch (error) {
+      console.error('Error reverse geocoding:', error);
+    }
   };
 
   const languageOptions = [
@@ -236,18 +296,54 @@ export default function SettingsScreen() {
         {renderSection(t('location'), (
           <View style={{ gap: 12 }}>
             <Text style={{ color: theme.colors.text.primary, fontWeight: '600' }}>{t('address')}</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: theme.colors.surface, color: theme.colors.text.primary, borderColor: theme.colors.border }]}
-              placeholder={t('address')}
-              placeholderTextColor={theme.colors.text.secondary}
-              value={homeAddress}
-              onChangeText={setHomeAddress}
-            />
+            <View style={{ position: 'relative' }}>
+              <TextInput
+                style={[styles.input, { backgroundColor: theme.colors.surface, color: theme.colors.text.primary, borderColor: theme.colors.border }]}
+                placeholder={t('address')}
+                placeholderTextColor={theme.colors.text.secondary}
+                value={homeAddress}
+                onChangeText={handleAddressChange}
+                onFocus={() => {
+                  if (addressSuggestions.length > 0) {
+                    setShowSuggestions(true);
+                  }
+                }}
+              />
+              {isLoadingAddress && (
+                <View style={{ position: 'absolute', right: 12, top: 12 }}>
+                  <Ionicons name="refresh" size={16} color={theme.colors.text.secondary} />
+                </View>
+              )}
+              
+              {/* Address Suggestions Dropdown */}
+              {showSuggestions && addressSuggestions.length > 0 && (
+                <View style={[styles.suggestionsContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                  {addressSuggestions.map((suggestion) => (
+                    <TouchableOpacity
+                      key={suggestion.id}
+                      style={[styles.suggestionItem, { borderBottomColor: theme.colors.border }]}
+                      onPress={() => handleAddressSelect(suggestion)}
+                    >
+                      <View style={styles.suggestionContent}>
+                        <Text style={[styles.suggestionMainText, { color: theme.colors.text.primary }]}>
+                          {suggestion.structured_formatting.main_text}
+                        </Text>
+                        <Text style={[styles.suggestionSecondaryText, { color: theme.colors.text.secondary }]}>
+                          {suggestion.structured_formatting.secondary_text}
+                        </Text>
+                      </View>
+                      <Ionicons name="location" size={16} color={theme.colors.primary.blue} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+            
             <Text style={{ color: theme.colors.text.secondary }}>{t('yourLocation')}</Text>
             <View style={{ height: 220, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: theme.colors.border }}>
               <MapView
-                                                     provider={shouldUseOSMTiles() ? undefined : PROVIDER_GOOGLE}
-           mapType={shouldUseOSMTiles() ? 'none' : 'standard'}
+                provider={shouldUseOSMTiles() ? undefined : PROVIDER_GOOGLE}
+                mapType={shouldUseOSMTiles() ? 'none' : 'standard'}
                 style={{ flex: 1 }}
                 initialRegion={{
                   latitude: homeLat ?? 9.923035,
@@ -255,12 +351,9 @@ export default function SettingsScreen() {
                   latitudeDelta: 0.01,
                   longitudeDelta: 0.01,
                 }}
-                onLongPress={(e) => {
-                  setHomeLat(e.nativeEvent.coordinate.latitude);
-                  setHomeLon(e.nativeEvent.coordinate.longitude);
-                }}
+                onLongPress={handleMapLongPress}
               >
-                                 {shouldUseOSMTiles() && (
+                {shouldUseOSMTiles() && (
                   <UrlTile
                     urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     maximumZ={19}
@@ -278,7 +371,9 @@ export default function SettingsScreen() {
                   />
                 )}
               </MapView>
-              <Text style={{ textAlign: 'center', padding: 8, color: theme.colors.text.secondary }}>{t('longPressToDropPin') || 'Long press to drop/move the pin'}</Text>
+              <Text style={{ textAlign: 'center', padding: 8, color: theme.colors.text.secondary }}>
+                {t('longPressToDropPin') || 'Long press to drop/move the pin'}
+              </Text>
             </View>
             <TouchableOpacity
               style={[styles.customizeButton, { backgroundColor: theme.colors.primary.blue }]}
@@ -482,5 +577,46 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
+  },
+  input: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    fontSize: 16,
+  },
+  suggestionsContainer: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    borderRadius: 8,
+    borderWidth: 1,
+    maxHeight: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+  suggestionContent: {
+    flex: 1,
+  },
+  suggestionMainText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  suggestionSecondaryText: {
+    fontSize: 14,
+    marginTop: 2,
   },
 });
