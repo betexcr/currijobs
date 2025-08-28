@@ -59,6 +59,13 @@ function LocalizedStack() {
             }} 
           />
           <Stack.Screen 
+            name="my-tasks" 
+            options={{ 
+              title: t('myTasks'),
+              headerShown: false 
+            }} 
+          />
+          <Stack.Screen 
             name="profile" 
             options={{ 
               title: t('profile'),

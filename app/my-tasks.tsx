@@ -24,6 +24,7 @@ import { Task } from '../lib/types';
 import { getCategoryIcon, getCategoryColor, getCategoryLabel } from '../lib/utils';
 import CreateTaskForm from '../components/CreateTaskForm';
 import ChambitoMascot from '../components/ChambitoMascot';
+import BottomNavigation from '../components/BottomNavigation';
 const { height } = Dimensions.get('window');
 
 // Import Chambito icon
@@ -605,6 +606,7 @@ export default function MyTasksScreen() {
           </View>
         </View>
       </Modal>
+      <BottomNavigation />
     </View>
   );
 }
