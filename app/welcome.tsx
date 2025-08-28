@@ -149,18 +149,15 @@ export default function WelcomeScreen() {
 
       {/* Content Section */}
       <View style={styles.contentSection}>
-        {/* Welcome Text */}
+                {/* Welcome Text */}
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeTitle}>
-            Bienvenido a CurriJobs
+            {t('welcomeToCurriJobs') || 'Bienvenido a CurriJobs'}
           </Text>
           <Text style={styles.welcomeSubtitle}>
-            Conectando trabajadores y clientes de confianza.
+            {t('connectingWorkersAndClients') || 'Conectando trabajadores y clientes de confianza.'}
           </Text>
-          {/* Debug text to verify new design is loaded */}
-          <Text style={styles.debugText}>
-            🎨 New Design Loaded Successfully!
-          </Text>
+ 
         </View>
 
         {/* Form */}
@@ -168,7 +165,7 @@ export default function WelcomeScreen() {
           {/* Email Input */}
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder={t('email') || 'Email'}
             placeholderTextColor="#9CA3AF"
             value={email}
             onChangeText={setEmail}
@@ -179,7 +176,7 @@ export default function WelcomeScreen() {
           {/* Password Input */}
           <TextInput
             style={styles.input}
-            placeholder="Password"
+            placeholder={t('password') || 'Password'}
             placeholderTextColor="#9CA3AF"
             value={password}
             onChangeText={setPassword}
@@ -194,7 +191,7 @@ export default function WelcomeScreen() {
             disabled={isLoggingIn}
           >
             <Text style={styles.loginButtonText}>
-              {isLoggingIn ? 'Iniciando sesión...' : 'Iniciar sesión'}
+              {isLoggingIn ? (t('loggingIn') || 'Iniciando sesión...') : (t('login') || 'Iniciar sesión')}
             </Text>
           </TouchableOpacity>
 
@@ -205,27 +202,27 @@ export default function WelcomeScreen() {
             disabled={isLoggingIn}
           >
             <Text style={styles.createAccountButtonText}>
-              Crear cuenta
+              {t('createAccount') || 'Crear cuenta'}
             </Text>
           </TouchableOpacity>
 
           {/* Separator */}
           <View style={styles.separator}>
             <View style={styles.separatorLine} />
-            <Text style={styles.separatorText}>Or</Text>
+            <Text style={styles.separatorText}>{t('or') || 'Or'}</Text>
             <View style={styles.separatorLine} />
           </View>
 
           {/* Social Buttons */}
           <TouchableOpacity style={styles.socialButton}>
             <Text style={styles.socialButtonText}>
-              Continuar con Google
+              {t('continueWithGoogle') || 'Continuar con Google'}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.socialButton}>
             <Text style={styles.socialButtonText}>
-              Continuar con Apple
+              {t('continueWithApple') || 'Continuar con Apple'}
             </Text>
           </TouchableOpacity>
 
@@ -233,12 +230,12 @@ export default function WelcomeScreen() {
           <View style={styles.footer}>
             <TouchableOpacity>
               <Text style={styles.forgotPasswordText}>
-                ¿Olvidaste tu contraseña?
+                {t('forgotPassword') || '¿Olvidaste tu contraseña?'}
               </Text>
             </TouchableOpacity>
             
             <Text style={styles.termsText}>
-              Al registrarte, aceptas nuestras Términos y Política de privacidad
+              {t('termsAndPrivacy') || 'Al registrarte, aceptas nuestras Términos y Política de privacidad'}
             </Text>
           </View>
         </View>
@@ -295,13 +292,6 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 22,
-  },
-  debugText: {
-    fontSize: 14,
-    color: '#10B981',
-    textAlign: 'center',
-    marginTop: 8,
-    fontWeight: 'bold',
   },
   formSection: {
     flex: 1,

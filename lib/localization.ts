@@ -191,6 +191,11 @@ export interface LocalizationStrings {
   // Welcome & Onboarding
   getStarted: string;
   welcomeToCurriJobs: string;
+  connectingWorkersAndClients: string;
+  createAccount: string;
+  continueWithGoogle: string;
+  continueWithApple: string;
+  termsAndPrivacy: string;
   loginToContinue: string;
   loginFailed: string;
   skipToDemo: string;
@@ -477,6 +482,11 @@ const localizations: Record<Language, LocalizationStrings> = {
     // Welcome & Onboarding
     getStarted: 'Comenzar',
     welcomeToCurriJobs: 'Bienvenido a CurriJobs',
+    connectingWorkersAndClients: 'Conectando trabajadores y clientes de confianza.',
+    createAccount: 'Crear cuenta',
+    continueWithGoogle: 'Continuar con Google',
+    continueWithApple: 'Continuar con Apple',
+    termsAndPrivacy: 'Al registrarte, aceptas nuestras Términos y Política de privacidad',
     loginToContinue: 'Inicia sesión para continuar',
     loginFailed: 'Error al iniciar sesión',
     skipToDemo: 'Saltar al demo',
@@ -761,6 +771,11 @@ const localizations: Record<Language, LocalizationStrings> = {
     // Welcome & Onboarding
     getStarted: 'Get Started',
     welcomeToCurriJobs: 'Welcome to CurriJobs',
+    connectingWorkersAndClients: 'Connecting trusted workers and clients.',
+    createAccount: 'Create Account',
+    continueWithGoogle: 'Continue with Google',
+    continueWithApple: 'Continue with Apple',
+    termsAndPrivacy: 'By registering, you accept our Terms and Privacy Policy',
     loginToContinue: 'Login to continue',
     loginFailed: 'Login failed',
     skipToDemo: 'Skip to demo',
@@ -1037,6 +1052,11 @@ const localizations: Record<Language, LocalizationStrings> = {
     // Welcome & Onboarding
     getStarted: '开始使用',
     welcomeToCurriJobs: '欢迎使用 CurriJobs',
+    connectingWorkersAndClients: '连接值得信赖的工人和客户。',
+    createAccount: '创建账户',
+    continueWithGoogle: '使用 Google 继续',
+    continueWithApple: '使用 Apple 继续',
+    termsAndPrivacy: '注册即表示您同意我们的条款和隐私政策',
     loginToContinue: '登录继续',
     loginFailed: '登录失败',
     skipToDemo: '跳转到演示',
